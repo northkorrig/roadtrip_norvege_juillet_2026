@@ -16,7 +16,7 @@ export function getSupabase(): SupabaseClient {
     throw new Error('Supabase non configuré : renseigne VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY')
   }
   client ??= createClient(url as string, anonKey as string, {
-    auth: { persistSession: false },
+    auth: { persistSession: true },
   })
   return client
 }

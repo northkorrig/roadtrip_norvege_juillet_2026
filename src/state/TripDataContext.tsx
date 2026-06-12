@@ -8,6 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { AuthContext } from '../context/AuthContext'
+import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { repo } from '../lib/repo'
 import type {
   Depense,
@@ -261,7 +263,8 @@ export function useTripData(): TripDataValue {
   return ctx
 }
 
-// ---- Mode lecture seule (page de partage /trip/:code) ----
+// ---- Mode lecture seule ----
+// Vrai si : page de partage /trip/:code (ReadonlyProvider) OU utilisateur avec rôle 'invite'
 
 const ReadonlyContext = createContext(false)
 
@@ -270,5 +273,11 @@ export function ReadonlyProvider({ children }: { children: ReactNode }): ReactNo
 }
 
 export function useReadonly(): boolean {
-  return useContext(ReadonlyContext)
+  const isReadonlyCtx = useContext(ReadonlyContext)
+  if (isReadonlyCtx) return true
+
+  const auth = useContext(AuthContext)
+  if (!isSupabaseConfigured) return false
+  if (auth.chargement) return false
+  return !auth.profil || auth.profil.role !== 'admin'
 }
