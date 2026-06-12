@@ -38,6 +38,33 @@ function detecterSousType(tags: Record<string, string>): SousTypeBivouac {
   return 'camp_site'
 }
 
+/** Miroirs Overpass essayés dans l'ordre — tous publics, certains bloquent
+ *  parfois le CORS ou saturent ; on bascule sur le suivant en cas d'échec. */
+const OVERPASS_ENDPOINTS = [
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+] as const
+
+async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ elements: OverpassElement[] }> {
+  let derniereErreur: Error | null = null
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: `data=${encodeURIComponent(query)}`,
+        signal,
+      })
+      if (!res.ok) throw new Error(`Overpass API : erreur ${res.status}`)
+      return (await res.json()) as { elements: OverpassElement[] }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') throw err
+      derniereErreur = err instanceof Error ? err : new Error(String(err))
+    }
+  }
+  throw derniereErreur ?? new Error('Tous les serveurs Overpass sont indisponibles')
+}
+
 export async function chercherBivouacs(
   lat: number,
   lng: number,
@@ -55,15 +82,7 @@ export async function chercherBivouacs(
     `);` +
     `out center tags;`
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(q)}`,
-    signal,
-  })
-  if (!res.ok) throw new Error(`Overpass API : erreur ${res.status}`)
-
-  const json = (await res.json()) as { elements: OverpassElement[] }
+  const json = await requeteOverpass(q, signal)
   const seen = new Set<number>()
   const results: SpotBivouac[] = []
 
