@@ -4,14 +4,21 @@ import { POI_CATEGORIES, POI_CATEGORIE_LIST, TRIP_DAYS } from '../../config/cons
 import { fmtDateCourte } from '../../lib/format'
 import { parseGoogleMapsUrl } from '../../lib/importExport'
 import { useTripData } from '../../state/TripDataContext'
-import type { LatLng, Poi, PoiCategorie, PoiInput } from '../../types/db'
+import type { Poi, PoiCategorie, PoiInput } from '../../types/db'
 import { Modal, useAction, useToast } from '../ui'
 import PlacesSearch from './PlacesSearch'
+
+export interface PoiPrefill {
+  lat: number
+  lng: number
+  nom?: string
+  categorie?: PoiCategorie
+}
 
 interface PoiFormProps {
   ouvert: boolean
   poi: Poi | null // null → création
-  prefill?: LatLng | null // clic sur la carte
+  prefill?: PoiPrefill | null
   onFermer: () => void
 }
 
@@ -50,6 +57,8 @@ export default function PoiForm({ ouvert, poi, prefill, onFermer }: PoiFormProps
     } else {
       setForm({
         ...FORM_VIDE,
+        nom: prefill?.nom ?? '',
+        categorie: prefill?.categorie ?? 'activite',
         lat: prefill ? prefill.lat.toFixed(5) : '',
         lng: prefill ? prefill.lng.toFixed(5) : '',
       })
