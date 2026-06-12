@@ -31,7 +31,7 @@ function LigneTache({ tache }: { tache: Tache }): ReactNode {
       {!readonly && (
         <button
           type="button"
-          className="p-1 text-cream-dim/0 transition-colors hover:text-red-300 group-hover:text-cream-dim/60"
+          className="p-1 text-cream-dim/50 transition-colors hover:text-red-300 sm:text-cream-dim/0 sm:group-hover:text-cream-dim/60"
           onClick={() => void executer(() => supprimerTache(tache.id))}
           aria-label="Supprimer la tâche"
         >
