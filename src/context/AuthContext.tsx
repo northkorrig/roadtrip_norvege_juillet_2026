@@ -37,36 +37,35 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
     const supabase = getSupabase()
     let actif = true
 
-    // Initialisation : on garantit que `chargement` repasse à false quoi qu'il
-    // arrive (session illisible, réseau coupé, profil introuvable), sinon l'app
-    // resterait bloquée sur l'écran « Chargement du voyage… ».
-    void (async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!actif) return
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          const profil = await fetchProfil(session.user.id).catch(() => null)
-          if (actif) setProfil(profil)
-        }
-      } catch {
-        // Session illisible → on poursuit en non-authentifié (redirige vers /login)
-      } finally {
-        if (actif) setChargement(false)
-      }
-    })()
-
+    // L'événement INITIAL_SESSION couvre la restauration de session au
+    // démarrage : pas besoin d'un getSession() séparé.
+    //
+    // ⚠️ Le callback DOIT rester synchrone : tout appel Supabase await-é ici
+    // (fetchProfil → .from()) attend en interne getSession(), qui attend la fin
+    // de initialize(), qui attend… la fin de ce callback. Ce deadlock ne se
+    // produit que lorsqu'une session existe — l'app restait donc bloquée sur
+    // « Chargement du voyage… » uniquement pour un utilisateur déjà connecté.
+    // On diffère le chargement du profil hors du callback (setTimeout 0),
+    // conformément à la recommandation de la doc Supabase.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!actif) return
       setUser(session?.user ?? null)
-      if (session?.user) {
-        setProfil(await fetchProfil(session.user.id).catch(() => null))
-      } else {
+      setChargement(false)
+      if (!session?.user) {
         setProfil(null)
+        return
       }
+      const userId = session.user.id
+      setTimeout(() => {
+        if (!actif) return
+        void fetchProfil(userId)
+          .catch(() => null)
+          .then((profil) => {
+            if (actif) setProfil(profil)
+          })
+      }, 0)
     })
 
     return () => {
