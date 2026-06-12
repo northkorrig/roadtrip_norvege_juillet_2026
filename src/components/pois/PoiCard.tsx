@@ -46,21 +46,21 @@ export default function PoiCard({ poi, selectionne = false, onSelect, onEdit, on
         {poi.note && <Markdown text={poi.note} className="mt-1.5 line-clamp-3" />}
 
         <div className="mt-2 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          <a className="btn-ghost px-2 py-1.5 text-[11px]" href={lienStreetView(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Street View">
+          <a className="btn-ghost px-2.5 py-2 text-[11px]" href={lienStreetView(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Street View">
             <Eye className="h-3.5 w-3.5" /> Street View
           </a>
-          <a className="btn-ghost px-2 py-1.5 text-[11px]" href={lienGoogleMaps(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Ouvrir dans Google Maps">
+          <a className="btn-ghost px-2.5 py-2 text-[11px]" href={lienGoogleMaps(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Ouvrir dans Google Maps">
             <ExternalLink className="h-3.5 w-3.5" /> Maps
           </a>
-          <a className="btn-ghost px-2 py-1.5 text-[11px]" href={lienWaze(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Ouvrir dans Waze">
+          <a className="btn-ghost px-2.5 py-2 text-[11px]" href={lienWaze(poi.lat, poi.lng)} target="_blank" rel="noreferrer" title="Ouvrir dans Waze">
             <Navigation className="h-3.5 w-3.5" /> Waze
           </a>
           {!readonly && (
             <>
-              <button type="button" className="btn-ghost px-2 py-1.5 text-[11px]" onClick={onEdit} title="Modifier">
+              <button type="button" className="btn-ghost px-2.5 py-2 text-[11px]" onClick={onEdit} title="Modifier">
                 <Pencil className="h-3.5 w-3.5" />
               </button>
-              <button type="button" className="btn-ghost px-2 py-1.5 text-[11px] text-red-300" onClick={onDelete} title="Supprimer">
+              <button type="button" className="btn-ghost px-2.5 py-2 text-[11px] text-red-300" onClick={onDelete} title="Supprimer">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </>
