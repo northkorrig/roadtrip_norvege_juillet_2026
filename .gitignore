@@ -1,0 +1,17 @@
+# Dependencies
+node_modules
+
+# Build
+dist
+dist-ssr
+
+# Environment — never commit credentials
+.env
+.env.local
+.env.*.local
+
+# Tooling
+.vercel
+*.log
+.DS_Store
+*.local

@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-night font-sans text-cream antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 85% -10%, rgba(91, 191, 186, 0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(232, 130, 74, 0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    @apply bg-glacier/40 text-cream;
+  }
+  /* Scrollbars discrètes, ambiance nuit */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #1e3650 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-night-line;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border border-white/10 bg-white/[0.06] shadow-glass backdrop-blur-xl;
+  }
+  .glass-soft {
+    @apply rounded-xl border border-white/[0.07] bg-white/[0.04] backdrop-blur-md;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-glacier disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-ember text-night-deep shadow-[0_4px_20px_rgba(232,130,74,0.35)] hover:bg-ember-soft hover:shadow-[0_6px_28px_rgba(232,130,74,0.5)] active:scale-[0.98];
+  }
+  .btn-glacier {
+    @apply btn bg-glacier/15 text-glacier ring-1 ring-inset ring-glacier/40 hover:bg-glacier/25;
+  }
+  .btn-ghost {
+    @apply btn bg-white/[0.06] text-cream ring-1 ring-inset ring-white/10 hover:bg-white/[0.12];
+  }
+  .btn-danger {
+    @apply btn bg-red-500/15 text-red-300 ring-1 ring-inset ring-red-400/40 hover:bg-red-500/25;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-night-deep/70 px-3.5 py-2.5 text-sm text-cream placeholder:text-cream-dim/50 focus:border-glacier/60 focus:outline-none focus:ring-2 focus:ring-glacier/25;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-dim;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-2xl bg-white/[0.05];
+  }
+}
+
+/* Autocomplete Google Places : adapter le dropdown au thème nuit */
+.pac-container {
+  background: #13263b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-top: 6px;
+  box-shadow: 0 8px 32px rgba(4, 12, 22, 0.6);
+  font-family: Inter, system-ui, sans-serif;
+}
+.pac-item {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #b7c2cc;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.pac-item:hover,
+.pac-item-selected {
+  background: rgba(91, 191, 186, 0.12);
+}
+.pac-item-query {
+  color: #f0ede6;
+}
+.pac-icon {
+  filter: invert(0.8);
+}
+
+/* Impression : le roadbook passe en thème clair, le reste disparaît */
+@media print {
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page {
+    break-inside: avoid;
+  }
+  .print-break {
+    break-before: page;
+  }
+}
