@@ -1,5 +1,6 @@
 import {
   Home,
+  LogOut,
   MapPin,
   NotebookPen,
   Printer,
@@ -11,6 +12,7 @@ import {
 import type { ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { LS_KEYS } from '../../config/constants'
+import { useAuth } from '../../context/AuthContext'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { useTripData } from '../../state/TripDataContext'
 import { useToast } from '../ui'
@@ -29,6 +31,7 @@ function classeLien(actif: boolean): string {
 
 export default function NavBar(): ReactNode {
   const { mode } = useTripData()
+  const { user, seDeconnecter } = useAuth()
   const toast = useToast()
   const [code, setCode] = useLocalStorage(LS_KEYS.shareCode, '')
 
@@ -95,6 +98,16 @@ export default function NavBar(): ReactNode {
             <button type="button" onClick={() => void partager()} className="btn-glacier p-2.5" title="Partager en lecture seule">
               <Share2 className="h-4 w-4" />
             </button>
+            {user && (
+              <button
+                type="button"
+                onClick={() => void seDeconnecter()}
+                className="btn-ghost p-2.5"
+                title="Se déconnecter"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>

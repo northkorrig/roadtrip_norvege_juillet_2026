@@ -105,3 +105,10 @@ export interface LatLng {
   lat: number
   lng: number
 }
+
+export type RoleProfil = 'admin' | 'invite'
+
+export interface Profil {
+  id: string
+  role: RoleProfil
+}
