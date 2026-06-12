@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "vercel@vercel-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "vercel-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "vercel/vercel-deploy-claude-code-plugin"
+      }
+    }
+  }
+}
