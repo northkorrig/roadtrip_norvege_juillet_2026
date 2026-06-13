@@ -10,6 +10,7 @@ import { TripDataProvider } from './state/TripDataContext'
 const HomePage = lazy(() => import('./pages/HomePage'))
 const ItineraryPage = lazy(() => import('./pages/ItineraryPage'))
 const PoisPage = lazy(() => import('./pages/PoisPage'))
+const BivouacsPage = lazy(() => import('./pages/BivouacsPage'))
 const BudgetPage = lazy(() => import('./pages/BudgetPage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
 const SharePage = lazy(() => import('./pages/SharePage'))
@@ -46,6 +47,7 @@ function AppShell(): ReactNode {
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
           <Route path="/itineraire" element={<ProtectedRoute><ItineraryPage /></ProtectedRoute>} />
           <Route path="/pois" element={<ProtectedRoute><PoisPage /></ProtectedRoute>} />
+          <Route path="/bivouacs" element={<ProtectedRoute><BivouacsPage /></ProtectedRoute>} />
           <Route path="/budget" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />

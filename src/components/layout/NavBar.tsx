@@ -6,6 +6,7 @@ import {
   Printer,
   Route,
   Share2,
+  Tent,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ const LIENS: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: '/', label: 'Accueil', Icon: Home },
   { to: '/itineraire', label: 'Itinéraire', Icon: Route },
   { to: '/pois', label: 'POIs', Icon: MapPin },
+  { to: '/bivouacs', label: 'Bivouac', Icon: Tent },
   { to: '/budget', label: 'Budget', Icon: Wallet },
   { to: '/notes', label: 'Notes', Icon: NotebookPen },
 ]
@@ -117,7 +119,7 @@ export default function NavBar(): ReactNode {
         aria-label="Navigation mobile"
         className="no-print fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-night/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       >
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {LIENS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
