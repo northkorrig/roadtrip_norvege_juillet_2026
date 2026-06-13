@@ -1,6 +1,7 @@
 import { Suspense, lazy, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import NavBar from './components/layout/NavBar'
+import PwaManager from './components/pwa/PwaManager'
 import { LoadingScreen, ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { isSupabaseConfigured } from './lib/supabaseClient'
@@ -57,6 +58,7 @@ function AppShell(): ReactNode {
 export default function App(): ReactNode {
   return (
     <ToastProvider>
+      <PwaManager />
       <AuthProvider>
         <BrowserRouter>
           <AppShell />

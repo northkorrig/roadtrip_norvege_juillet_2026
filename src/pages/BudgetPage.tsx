@@ -272,7 +272,7 @@ export default function BudgetPage(): ReactNode {
                         {fmt(d.montant)}
                       </span>
                       {!readonly && (
-                        <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="flex shrink-0 gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
                           <button
                             type="button"
                             className="p-1.5 text-cream-dim hover:text-glacier"

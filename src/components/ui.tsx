@@ -167,6 +167,15 @@ export function Drawer({ ouvert, onFermer, titre, children }: OverlayProps): Rea
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.28, ease: 'easeOut' }}
+            // Swipe vers la droite pour fermer (geste naturel iOS/Android).
+            // L'axe X seul laisse le scroll vertical du contenu intact.
+            drag="x"
+            dragDirectionLock
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={{ left: 0, right: 0.4 }}
+            onDragEnd={(_e, info) => {
+              if (info.offset.x > 120 || info.velocity.x > 600) onFermer()
+            }}
           >
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 className="font-display text-xl font-semibold">{titre}</h2>
