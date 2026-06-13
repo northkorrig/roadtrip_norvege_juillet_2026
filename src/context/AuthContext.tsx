@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { useToast } from '../components/ui'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import type { Profil } from '../types/db'
+
+// Au-delà de ce délai sans réponse de Supabase (réseau lent/coupé en montagne),
+// on cesse d'attendre getSession() et on rend la main à l'utilisateur.
+const AUTH_TIMEOUT_MS = 6000
 
 interface AuthValue {
   user: User | null
@@ -27,6 +32,7 @@ async function fetchProfil(userId: string): Promise<Profil | null> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
+  const toast = useToast()
   const [user, setUser] = useState<User | null>(null)
   const [profil, setProfil] = useState<Profil | null>(null)
   const [chargement, setChargement] = useState(isSupabaseConfigured)
@@ -36,6 +42,15 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
 
     const supabase = getSupabase()
     let actif = true
+    let resolu = false
+
+    // Filet de sécurité : si aucun événement d'auth n'arrive (getSession() figé
+    // par un réseau lent/coupé), on débloque l'écran et on bascule en local.
+    const minuterie = setTimeout(() => {
+      if (!actif || resolu) return
+      setChargement(false)
+      toast('Hors-ligne — données locales')
+    }, AUTH_TIMEOUT_MS)
 
     // L'événement INITIAL_SESSION couvre la restauration de session au
     // démarrage : pas besoin d'un getSession() séparé.
@@ -51,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!actif) return
+      resolu = true
+      clearTimeout(minuterie)
       setUser(session?.user ?? null)
       setChargement(false)
       if (!session?.user) {
@@ -70,9 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
 
     return () => {
       actif = false
+      clearTimeout(minuterie)
       subscription.unsubscribe()
     }
-  }, [])
+  }, [toast])
 
   const seDeconnecter = async (): Promise<void> => {
     if (!isSupabaseConfigured) return
