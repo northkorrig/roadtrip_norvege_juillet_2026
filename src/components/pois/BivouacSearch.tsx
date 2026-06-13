@@ -1,15 +1,19 @@
 import {
   Caravan,
+  Droplets,
   ExternalLink,
+  Flame,
   Home,
   List,
   Map as MapIcon,
+  Mountain,
   Plus,
   RotateCw,
   Search,
   Star,
   Tent,
   TreePine,
+  Umbrella,
   type LucideIcon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -25,8 +29,10 @@ import type { PoiPrefill } from './PoiForm'
 const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon: LucideIcon }> = {
   camp_site: { label: 'Camping', couleur: '#7FD08C', Icon: Tent },
   caravan_site: { label: 'Camping-car / van', couleur: '#F0C04A', Icon: Caravan },
-  wilderness_hut: { label: 'Refuge / Hut', couleur: '#E8824A', Icon: Home },
-  shelter: { label: 'Abri', couleur: '#9B8CFF', Icon: TreePine },
+  wilderness_hut: { label: 'Refuge non gardé', couleur: '#E8824A', Icon: Home },
+  alpine_hut: { label: 'Refuge gardé', couleur: '#FF7FA0', Icon: Mountain },
+  gapahuk: { label: 'Gapahuk', couleur: '#5BBFBA', Icon: TreePine },
+  shelter: { label: 'Abri', couleur: '#9B8CFF', Icon: Umbrella },
 }
 
 const RAYONS = [5, 10, 20, 50] as const
@@ -53,6 +59,49 @@ function NoteEtoiles({ note }: { note: NoteGoogle }): ReactNode {
   )
 }
 
+/** Badges équipements + DNT, à la manière des fiches park4night. */
+function BadgesSpot({ spot }: { spot: SpotBivouac }): ReactNode {
+  if (!spot.dnt && !spot.eau && !spot.feu && !spot.toilettes) return null
+  const badge = 'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium'
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-1">
+      {spot.dnt && (
+        <span className={`${badge} bg-ember/20 text-ember`} title="Réseau DNT (club alpin norvégien)">
+          DNT
+        </span>
+      )}
+      {spot.eau && (
+        <span className={`${badge} bg-glacier/15 text-glacier`} title="Eau potable">
+          <Droplets className="h-3 w-3" /> eau
+        </span>
+      )}
+      {spot.feu && (
+        <span className={`${badge} bg-orange-400/15 text-orange-300`} title="Feu autorisé / foyer">
+          <Flame className="h-3 w-3" /> feu
+        </span>
+      )}
+      {spot.toilettes && (
+        <span className={`${badge} bg-white/10 text-cream-dim`} title="Toilettes">
+          WC
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Note pré-remplie du POI : description OSM + équipements connus. */
+function notePrefill(spot: SpotBivouac): string | undefined {
+  const equip = [
+    spot.dnt ? 'DNT' : null,
+    spot.eau ? 'eau potable' : null,
+    spot.feu ? 'feu autorisé' : null,
+    spot.toilettes ? 'WC' : null,
+    spot.fee === false ? 'gratuit' : spot.fee === true ? 'payant' : null,
+  ].filter(Boolean)
+  const lignes = [spot.description, equip.length > 0 ? `Équipements : ${equip.join(', ')}` : null].filter(Boolean)
+  return lignes.length > 0 ? lignes.join('\n\n') : undefined
+}
+
 interface Props {
   ouvert: boolean
   onFermer: () => void
@@ -66,7 +115,7 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
   const [etapeId, setEtapeId] = useState<string>('')
   const [rayon, setRayon] = useState<number>(20)
   const [filtres, setFiltres] = useState<Set<SousTypeBivouac>>(
-    new Set<SousTypeBivouac>(['camp_site', 'caravan_site', 'wilderness_hut', 'shelter']),
+    new Set<SousTypeBivouac>(['camp_site', 'caravan_site', 'wilderness_hut', 'alpine_hut', 'gapahuk', 'shelter']),
   )
   const [inclureSansNom, setInclureSansNom] = useState(false)
   const [vue, setVue] = useState<'liste' | 'carte'>('liste')
@@ -165,7 +214,7 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
   )
 
   const handleAjouter = (spot: SpotBivouac): void => {
-    onAjouter({ lat: spot.lat, lng: spot.lng, nom: libelleSpot(spot), categorie: 'bivouac' })
+    onAjouter({ lat: spot.lat, lng: spot.lng, nom: libelleSpot(spot), categorie: 'bivouac', note: notePrefill(spot) })
     onFermer()
   }
 
@@ -406,6 +455,10 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
                         <span className="tabular-nums">{spotSel.distanceKm.toFixed(1)} km</span>
                       </span>
                     </p>
+                    <BadgesSpot spot={spotSel} />
+                    {spotSel.description && (
+                      <p className="mt-1 line-clamp-2 text-xs text-cream-dim/70">{spotSel.description}</p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -445,6 +498,7 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
                           <span className="tabular-nums">{spot.distanceKm.toFixed(1)} km</span>
                         </span>
                       </p>
+                      <BadgesSpot spot={spot} />
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       {spot.website && (

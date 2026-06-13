@@ -1,4 +1,10 @@
-export type SousTypeBivouac = 'camp_site' | 'caravan_site' | 'wilderness_hut' | 'shelter'
+export type SousTypeBivouac =
+  | 'camp_site'
+  | 'caravan_site'
+  | 'wilderness_hut'
+  | 'alpine_hut'
+  | 'gapahuk'
+  | 'shelter'
 
 export interface SpotBivouac {
   osmId: string
@@ -8,8 +14,15 @@ export interface SpotBivouac {
   lat: number
   lng: number
   operateur: string | null
+  /** Géré par le DNT / une turistforening locale (réseau du club alpin norvégien). */
+  dnt: boolean
   fee: boolean | null
+  /** Équipements (null = inconnu dans OSM). */
+  eau: boolean | null
+  feu: boolean | null
+  toilettes: boolean | null
   website: string | null
+  description: string | null
   distanceKm: number
 }
 
@@ -33,10 +46,27 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 function detecterSousType(tags: Record<string, string>): SousTypeBivouac {
+  if (tags.tourism === 'alpine_hut') return 'alpine_hut'
   if (tags.tourism === 'wilderness_hut') return 'wilderness_hut'
   if (tags.tourism === 'caravan_site') return 'caravan_site'
-  if (tags.amenity === 'shelter') return 'shelter'
+  if (tags.amenity === 'shelter') {
+    // Les gapahuks norvégiens (abris ouverts en bois, parfaits pour bivouaquer)
+    // sont tagués lean_to ; on les distingue des simples abris de pluie.
+    return tags.shelter_type === 'lean_to' || tags.shelter_type === 'gapahuk' ? 'gapahuk' : 'shelter'
+  }
   return 'camp_site'
+}
+
+function bool3(v: string | undefined): boolean | null {
+  if (v === undefined || v === '') return null
+  return v !== 'no' && v !== 'none'
+}
+
+/** DNT et turistforeninger locales (Den Norske Turistforening — données issues
+ *  de la Nasjonal Turbase, importées dans OSM). */
+function estDnt(tags: Record<string, string>): boolean {
+  const op = `${tags.operator ?? ''} ${tags.brand ?? ''} ${tags.network ?? ''}`.toLowerCase()
+  return /\bdnt\b|turistforening|turlag/.test(op)
 }
 
 /** Miroirs Overpass essayés dans l'ordre — tous publics, certains bloquent
@@ -76,9 +106,9 @@ export async function chercherBivouacs(
   const q =
     `[out:json][timeout:30];` +
     `(` +
-    `node["tourism"~"^(camp_site|caravan_site|wilderness_hut)$"](around:${r},${lat},${lng});` +
+    `node["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut)$"](around:${r},${lat},${lng});` +
     `node["amenity"="shelter"](around:${r},${lat},${lng});` +
-    `way["tourism"~"^(camp_site|caravan_site|wilderness_hut)$"](around:${r},${lat},${lng});` +
+    `way["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut)$"](around:${r},${lat},${lng});` +
     `way["amenity"="shelter"](around:${r},${lat},${lng});` +
     `);` +
     `out center tags;`
@@ -105,8 +135,13 @@ export async function chercherBivouacs(
       lat: elLat,
       lng: elLng,
       operateur: tags.operator ?? tags.brand ?? null,
+      dnt: estDnt(tags),
       fee: tags.fee === 'yes' ? true : tags.fee === 'no' ? false : null,
+      eau: bool3(tags.drinking_water ?? tags.water),
+      feu: bool3(tags.openfire ?? tags.fireplace ?? (tags.leisure === 'firepit' ? 'yes' : undefined)),
+      toilettes: bool3(tags.toilets),
       website: tags.website ?? tags.url ?? null,
+      description: tags.description ?? tags['description:no'] ?? null,
       distanceKm: haversineKm(lat, lng, elLat, elLng),
     })
   }

@@ -13,6 +13,7 @@ export interface PoiPrefill {
   lng: number
   nom?: string
   categorie?: PoiCategorie
+  note?: string
 }
 
 interface PoiFormProps {
@@ -59,6 +60,7 @@ export default function PoiForm({ ouvert, poi, prefill, onFermer }: PoiFormProps
         ...FORM_VIDE,
         nom: prefill?.nom ?? '',
         categorie: prefill?.categorie ?? 'activite',
+        note: prefill?.note ?? '',
         lat: prefill ? prefill.lat.toFixed(5) : '',
         lng: prefill ? prefill.lng.toFixed(5) : '',
       })
