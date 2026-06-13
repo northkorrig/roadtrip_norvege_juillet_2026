@@ -2,7 +2,8 @@ export type SousTypeBivouac = 'camp_site' | 'caravan_site' | 'wilderness_hut' | 
 
 export interface SpotBivouac {
   osmId: string
-  nom: string
+  /** null si le spot n'a pas de nom dans OSM (fréquent pour les abris). */
+  nom: string | null
   sousType: SousTypeBivouac
   lat: number
   lng: number
@@ -21,7 +22,7 @@ interface OverpassElement {
   tags?: Record<string, string>
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLng = ((lng2 - lng1) * Math.PI) / 180
@@ -95,7 +96,7 @@ export async function chercherBivouacs(
     if (elLat == null || elLng == null) continue
 
     const tags = el.tags ?? {}
-    const nom = tags.name ?? tags['name:en'] ?? tags['name:no'] ?? 'Spot sans nom'
+    const nom = tags.name ?? tags['name:en'] ?? tags['name:no'] ?? null
 
     results.push({
       osmId: `${el.type}/${el.id}`,
