@@ -7,6 +7,7 @@ import {
   List,
   Map as MapIcon,
   Mountain,
+  Navigation,
   Plus,
   RotateCw,
   Search,
@@ -17,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useGeolocation } from '../../hooks/useGeolocation'
 import { chercherBivouacs, haversineKm, type SousTypeBivouac, type SpotBivouac } from '../../lib/overpass'
 import { chercherNotesGoogle, lienAvisGoogle, type NoteGoogle } from '../../lib/placesRatings'
 import { useTripData } from '../../state/TripDataContext'
@@ -36,6 +38,7 @@ const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon
 }
 
 const RAYONS = [5, 10, 20, 50] as const
+const POSITION = '__position__'
 
 /** Libellé affiché — repli sur le type quand le spot n'a pas de nom dans OSM. */
 function libelleSpot(spot: SpotBivouac): string {
@@ -111,6 +114,7 @@ interface Props {
 export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): ReactNode {
   const { etapes } = useTripData()
   const etapesAvecCoords = etapes.filter((e) => e.lat != null && e.lng != null)
+  const geo = useGeolocation()
 
   const [etapeId, setEtapeId] = useState<string>('')
   const [rayon, setRayon] = useState<number>(20)
@@ -133,8 +137,8 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
   const skipFitRef = useRef(false)
 
   useEffect(() => {
-    if (ouvert && !etapeId && etapesAvecCoords.length > 0) {
-      setEtapeId(etapesAvecCoords[0].id)
+    if (ouvert && !etapeId) {
+      setEtapeId(etapesAvecCoords.length > 0 ? etapesAvecCoords[0].id : POSITION)
     }
   }, [ouvert, etapesAvecCoords, etapeId])
 
@@ -180,10 +184,16 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
     }
   }, [])
 
-  const rechercher = (): void => {
+  const rechercher = async (): Promise<void> => {
+    skipFitRef.current = false
+    if (etapeId === POSITION) {
+      const p = await geo.localiser()
+      if (!p) return
+      void lancerRecherche(p.lat, p.lng, rayon)
+      return
+    }
     const etape = etapes.find((e) => e.id === etapeId)
     if (!etape?.lat || !etape?.lng) return
-    skipFitRef.current = false
     void lancerRecherche(etape.lat, etape.lng, rayon)
   }
 
@@ -295,21 +305,19 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
     <Drawer ouvert={ouvert} onFermer={onFermer} titre="Bivouacs & Campings">
       <div className="space-y-4">
         <div>
-          <label className="label">Autour de quelle étape ?</label>
-          {etapesAvecCoords.length === 0 ? (
-            <p className="text-sm text-amber-400">Aucune étape avec coordonnées GPS. Ajoute des coordonnées à tes étapes d'abord.</p>
-          ) : (
-            <select className="input" value={etapeId} onChange={(e) => setEtapeId(e.target.value)}>
-              <option value="" disabled>
-                — Choisir une étape —
-              </option>
-              {etapesAvecCoords.map((e) => (
-                <option key={e.id} value={e.id}>
-                  J{etapes.indexOf(e) + 1} — {e.nom}
-                </option>
-              ))}
-            </select>
-          )}
+          <label className="label">Où chercher ?</label>
+          <select className="input" value={etapeId} onChange={(e) => setEtapeId(e.target.value)}>
+            <option value={POSITION}>📍 Autour de moi (GPS)</option>
+            {etapesAvecCoords.length > 0 && (
+              <optgroup label="Étapes">
+                {etapesAvecCoords.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    J{etapes.indexOf(e) + 1} — {e.nom}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </div>
 
         <div>
@@ -375,17 +383,23 @@ export default function BivouacSearch({ ouvert, onFermer, onAjouter }: Props): R
         <button
           type="button"
           className="btn-primary w-full"
-          onClick={rechercher}
-          disabled={!etapeId || chargement || etapesAvecCoords.length === 0}
+          onClick={() => void rechercher()}
+          disabled={!etapeId || chargement || geo.chargement}
         >
-          {chargement ? <Spinner className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-          {chargement ? 'Recherche en cours…' : 'Rechercher'}
+          {chargement || geo.chargement ? (
+            <Spinner className="h-4 w-4" />
+          ) : etapeId === POSITION ? (
+            <Navigation className="h-4 w-4" />
+          ) : (
+            <Search className="h-4 w-4" />
+          )}
+          {geo.chargement ? 'Localisation…' : chargement ? 'Recherche en cours…' : 'Rechercher'}
         </button>
       </div>
 
-      {erreur && (
+      {(erreur || geo.erreur) && (
         <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {erreur}
+          {erreur ?? geo.erreur}
         </div>
       )}
 

@@ -1,8 +1,9 @@
-import { List, Map as MapIcon, Plus, RefreshCw, Sparkles } from 'lucide-react'
+import { List, Map as MapIcon, Plus, RefreshCw, Ship, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import MapCanvas from '../components/map/MapCanvas'
 import { fitToPoints, useRoutePolyline, useTripMarkers } from '../components/map/mapLayers'
 import EtapeEditor from '../components/itinerary/EtapeEditor'
+import FerrySearch from '../components/itinerary/FerrySearch'
 import Timeline from '../components/itinerary/Timeline'
 import { ConfirmDialog, ErrorBanner, LoadingScreen, PageTransition, useAction, useToast } from '../components/ui'
 import { fetchDrivingRoute, optimizeWaypointOrder } from '../lib/directions'
@@ -27,6 +28,7 @@ export default function ItineraryPage(): ReactNode {
   const [vueMobile, setVueMobile] = useState<'liste' | 'carte'>('liste')
   const [confirmerOptim, setConfirmerOptim] = useState(false)
   const [travail, setTravail] = useState<'recalcul' | 'optimisation' | null>(null)
+  const [ferriesOuvert, setFerriesOuvert] = useState(false)
 
   const etapesGeo = useMemo(() => etapes.filter((e) => e.lat !== null && e.lng !== null), [etapes])
   const stops = useMemo<LatLng[]>(
@@ -176,6 +178,15 @@ export default function ItineraryPage(): ReactNode {
                 <MapIcon className="h-3.5 w-3.5" /> Carte
               </button>
             </div>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setFerriesOuvert(true)}
+              title="Prochains départs de ferry autour d'une étape ou de ta position"
+            >
+              <Ship className="h-4 w-4" />
+              <span className="hidden sm:inline">Ferries</span>
+            </button>
             {!readonly && (
               <>
                 <button
@@ -230,6 +241,8 @@ export default function ItineraryPage(): ReactNode {
       </div>
 
       <EtapeEditor ouvert={editorOuvert} etape={enEdition} onFermer={() => setEditorOuvert(false)} />
+
+      <FerrySearch ouvert={ferriesOuvert} onFermer={() => setFerriesOuvert(false)} />
 
       <ConfirmDialog
         ouvert={confirmerOptim}
