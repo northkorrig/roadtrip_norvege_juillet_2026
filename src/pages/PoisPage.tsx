@@ -9,10 +9,10 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { List, Map as MapIcon, Plus, Search, Tent } from 'lucide-react'
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import MapCanvas from '../components/map/MapCanvas'
 import { useTripMarkers } from '../components/map/mapLayers'
-import BivouacSearch from '../components/pois/BivouacSearch'
 import ImportExportMenu from '../components/pois/ImportExportMenu'
 import PoiCard from '../components/pois/PoiCard'
 import PoiForm, { type PoiPrefill } from '../components/pois/PoiForm'
@@ -69,11 +69,22 @@ export default function PoisPage(): ReactNode {
   const [vue, setVue] = useState<'liste' | 'carte'>('liste')
   const [filtres, setFiltres] = useState<Set<PoiCategorie>>(new Set())
   const [recherche, setRecherche] = useState('')
+  const location = useLocation()
   const [formOuvert, setFormOuvert] = useState(false)
   const [enEdition, setEnEdition] = useState<Poi | null>(null)
   const [prefill, setPrefill] = useState<PoiPrefill | null>(null)
-  const [bivouacOuvert, setBivouacOuvert] = useState(false)
   const [aSupprimer, setASupprimer] = useState<Poi | null>(null)
+
+  // Ouvre le formulaire pré-rempli quand on revient de la page Bivouacs
+  useEffect(() => {
+    const state = location.state as { bivouacPrefill?: PoiPrefill } | null
+    if (state?.bivouacPrefill) {
+      setEnEdition(null)
+      setPrefill(state.bivouacPrefill)
+      setFormOuvert(true)
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
   const [importDrafts, setImportDrafts] = useState<PoiDraft[] | null>(null)
   const [poiBulle, setPoiBulle] = useState<Poi | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -189,11 +200,9 @@ export default function PoisPage(): ReactNode {
               </button>
             </div>
             {!readonly && <ImportExportMenu onImport={setImportDrafts} />}
-            {!readonly && (
-              <button type="button" className="btn-ghost" onClick={() => setBivouacOuvert(true)}>
-                <Tent className="h-4 w-4" /> Bivouacs
-              </button>
-            )}
+            <Link to="/bivouacs" className="btn-ghost">
+              <Tent className="h-4 w-4" /> Bivouacs
+            </Link>
             {!readonly && (
               <button type="button" className="btn-primary" onClick={() => ouvrirCreation()}>
                 <Plus className="h-4 w-4" /> POI
@@ -291,12 +300,6 @@ export default function PoisPage(): ReactNode {
           </DndContext>
         )}
       </div>
-
-      <BivouacSearch
-        ouvert={bivouacOuvert}
-        onFermer={() => setBivouacOuvert(false)}
-        onAjouter={(p) => ouvrirCreation(p)}
-      />
 
       <PoiForm ouvert={formOuvert} poi={enEdition} prefill={prefill} onFermer={() => setFormOuvert(false)} />
 
