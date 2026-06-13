@@ -2,7 +2,8 @@ export type SousTypeBivouac = 'camp_site' | 'caravan_site' | 'wilderness_hut' | 
 
 export interface SpotBivouac {
   osmId: string
-  nom: string
+  /** null si le spot n'a pas de nom dans OSM (fréquent pour les abris). */
+  nom: string | null
   sousType: SousTypeBivouac
   lat: number
   lng: number
@@ -95,7 +96,7 @@ export async function chercherBivouacs(
     if (elLat == null || elLng == null) continue
 
     const tags = el.tags ?? {}
-    const nom = tags.name ?? tags['name:en'] ?? tags['name:no'] ?? 'Spot sans nom'
+    const nom = tags.name ?? tags['name:en'] ?? tags['name:no'] ?? null
 
     results.push({
       osmId: `${el.type}/${el.id}`,
