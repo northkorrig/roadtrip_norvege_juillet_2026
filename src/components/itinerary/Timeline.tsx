@@ -1,6 +1,7 @@
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -71,7 +72,13 @@ export default function Timeline({
   onEdit,
   onReorder,
 }: TimelineProps): ReactNode {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  // Sur iOS, le PointerSensor entre en conflit avec le scroll de page. Le
+  // TouchSensor avec un délai d'activation (250 ms) distingue clairement un
+  // appui maintenu (drag) d'un simple défilement.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  )
 
   const finDrag = (event: DragEndEvent): void => {
     const { active, over } = event
