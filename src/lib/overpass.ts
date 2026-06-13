@@ -9,6 +9,8 @@ export type SousTypeBivouac =
   | 'picnic'
   | 'beach'
   | 'rest_area'
+  /** Lieu remarquable documenté par la communauté (Wikipédia), via /api/spots. */
+  | 'remarquable'
 
 export interface SpotBivouac {
   osmId: string

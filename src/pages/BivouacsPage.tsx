@@ -10,6 +10,7 @@ import {
   Plus,
   RotateCw,
   Search,
+  Sparkles,
   SquareParking,
   Star,
   Telescope,
@@ -27,12 +28,14 @@ import type { PoiPrefill } from '../components/pois/PoiForm'
 import { PageTransition, Spinner } from '../components/ui'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { lienStreetView } from '../lib/googleMaps'
+import { chercherLieuxRemarquables } from '../lib/communitySpots'
 import { chercherBivouacs, haversineKm, type SousTypeBivouac, type SpotBivouac } from '../lib/overpass'
 import { chercherNotesGoogle, lienAvisGoogle, type NoteGoogle } from '../lib/placesRatings'
 import { useTripData } from '../state/TripDataContext'
 import type { LatLng } from '../types/db'
 
 const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon: LucideIcon }> = {
+  remarquable: { label: 'Lieu remarquable', couleur: '#E8C45A', Icon: Sparkles },
   viewpoint: { label: 'Point de vue', couleur: '#9B8CFF', Icon: Telescope },
   beach: { label: 'Plage / baignade', couleur: '#6FB8FF', Icon: Waves },
   picnic: { label: 'Pique-nique / feu', couleur: '#F0A35E', Icon: Flame },
@@ -118,6 +121,7 @@ export default function BivouacsPage(): ReactNode {
   const [rayon, setRayon] = useState<number>(20)
   const [filtres, setFiltres] = useState<Set<SousTypeBivouac>>(
     new Set<SousTypeBivouac>([
+      'remarquable',
       'viewpoint',
       'beach',
       'picnic',
@@ -167,8 +171,14 @@ export default function BivouacsPage(): ReactNode {
     setNotes({})
 
     try {
-      const resultats = await chercherBivouacs(lat, lng, rayonKm, ctrl.signal)
+      // OSM (campings, refuges, spots nature) + lieux remarquables communautaires
+      // (/api/spots) en parallèle ; ce dernier renvoie [] s'il est indisponible.
+      const [bivouacs, remarquables] = await Promise.all([
+        chercherBivouacs(lat, lng, rayonKm, ctrl.signal),
+        chercherLieuxRemarquables(lat, lng, rayonKm, ctrl.signal),
+      ])
       if (ctrl.signal.aborted) return
+      const resultats = [...bivouacs, ...remarquables].sort((a, b) => a.distanceKm - b.distanceKm)
       setSpots(resultats)
       setNotesChargement(true)
       void chercherNotesGoogle(lat, lng, rayonKm, resultats)
@@ -226,7 +236,8 @@ export default function BivouacsPage(): ReactNode {
       lat: spot.lat,
       lng: spot.lng,
       nom: libelleSpot(spot),
-      categorie: spot.sousType === 'viewpoint' ? 'vue_panoramique' : 'bivouac',
+      categorie:
+        spot.sousType === 'viewpoint' ? 'vue_panoramique' : spot.sousType === 'remarquable' ? 'activite' : 'bivouac',
       note: notePrefill(spot),
     }
     // Encode prefill in URL state so PoisPage can pick it up
@@ -502,7 +513,7 @@ export default function BivouacsPage(): ReactNode {
                   <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">
                     © contributeurs OpenStreetMap
                   </a>
-                  {' · avis : Google Maps'}
+                  {' · lieux remarquables : Wikipédia · avis : Google Maps'}
                 </p>
               )}
             </div>
