@@ -5,10 +5,14 @@ export type SousTypeBivouac =
   | 'alpine_hut'
   | 'gapahuk'
   | 'shelter'
+  | 'viewpoint'
+  | 'picnic'
+  | 'beach'
+  | 'rest_area'
 
 export interface SpotBivouac {
   osmId: string
-  /** null si le spot n'a pas de nom dans OSM (fréquent pour les abris). */
+  /** null si le spot n'a pas de nom dans OSM (fréquent pour les abris, plages, points de vue). */
   nom: string | null
   sousType: SousTypeBivouac
   lat: number
@@ -46,6 +50,13 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 function detecterSousType(tags: Record<string, string>): SousTypeBivouac {
+  // Spots remarquables / nature en priorité : ce sont eux qui manquaient à l'appel
+  // quand on ne cherchait que les campings et les refuges.
+  if (tags.tourism === 'viewpoint') return 'viewpoint'
+  if (tags.natural === 'beach') return 'beach'
+  if (tags.highway === 'rest_area') return 'rest_area'
+  if (tags.tourism === 'picnic_site' || tags.leisure === 'firepit') return 'picnic'
+
   if (tags.tourism === 'alpine_hut') return 'alpine_hut'
   if (tags.tourism === 'wilderness_hut') return 'wilderness_hut'
   if (tags.tourism === 'caravan_site') return 'caravan_site'
@@ -54,6 +65,7 @@ function detecterSousType(tags: Record<string, string>): SousTypeBivouac {
     // sont tagués lean_to ; on les distingue des simples abris de pluie.
     return tags.shelter_type === 'lean_to' || tags.shelter_type === 'gapahuk' ? 'gapahuk' : 'shelter'
   }
+  // tourism=camp_site et tourism=camp_pitch (emplacements informels)
   return 'camp_site'
 }
 
@@ -104,13 +116,23 @@ export async function chercherBivouacs(
   signal?: AbortSignal,
 ): Promise<SpotBivouac[]> {
   const r = rayonKm * 1000
+  const a = `(around:${r},${lat},${lng})`
+  // On ratisse large : hébergements (campings, refuges, abris), emplacements
+  // informels (camp_pitch), aires de repos pour van, et surtout les "spots
+  // remarquables" repérés par la communauté OSM — points de vue, plages,
+  // aires de pique-nique et foyers de bivouac.
   const q =
-    `[out:json][timeout:30];` +
+    `[out:json][timeout:45];` +
     `(` +
-    `node["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut)$"](around:${r},${lat},${lng});` +
-    `node["amenity"="shelter"](around:${r},${lat},${lng});` +
-    `way["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut)$"](around:${r},${lat},${lng});` +
-    `way["amenity"="shelter"](around:${r},${lat},${lng});` +
+    `node["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site|viewpoint)$"]${a};` +
+    `way["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site)$"]${a};` +
+    `node["amenity"="shelter"]${a};` +
+    `way["amenity"="shelter"]${a};` +
+    `node["leisure"="firepit"]${a};` +
+    `node["highway"="rest_area"]${a};` +
+    `way["highway"="rest_area"]${a};` +
+    `node["natural"="beach"]${a};` +
+    `way["natural"="beach"]${a};` +
     `);` +
     `out center tags;`
 

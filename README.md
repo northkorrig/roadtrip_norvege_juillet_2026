@@ -14,6 +14,11 @@ Google Maps (Maps JS + Places + Directions) · Supabase (PostgreSQL + Realtime) 
 - **POIs** : 26 spots pré-remplis, filtres par catégorie, vue liste/carte, ajout par clic carte,
   recherche **Google Places**, collage d'URL Google Maps, **import/export KML · GPX · CSV**,
   liens Street View / Google Maps / Waze
+- **Bivouacs & spots** (`/bivouacs`) : carte plein écran + recherche communautaire **OpenStreetMap**
+  (autour d'une étape, de ma position GPS ou de la zone visible). Au-delà des campings et refuges :
+  **points de vue, plages/baignade, aires de pique-nique & foyers, aires de repos van, emplacements
+  informels, gapahuks/abris**, réseau **DNT**, équipements (eau/feu/WC), avis **Google Maps** croisés
+  par proximité, Street View, ajout direct aux POIs
 - **Budget** : budget total éditable (localStorage `total_budget`), donut par catégorie,
   filtre par personne, conversion **EUR ⇄ NOK**, réservations à faire avec statuts
 - **Notes & logistique** : notes Markdown liées aux jours/POIs, checklist packing + avant-départ,
