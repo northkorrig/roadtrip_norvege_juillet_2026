@@ -10,10 +10,14 @@ import {
   Plus,
   RotateCw,
   Search,
+  Sparkles,
+  SquareParking,
   Star,
+  Telescope,
   Tent,
   TreePine,
   Umbrella,
+  Waves,
   type LucideIcon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -24,18 +28,24 @@ import type { PoiPrefill } from '../components/pois/PoiForm'
 import { PageTransition, Spinner } from '../components/ui'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { lienStreetView } from '../lib/googleMaps'
+import { chercherLieuxRemarquables } from '../lib/communitySpots'
 import { chercherBivouacs, haversineKm, type SousTypeBivouac, type SpotBivouac } from '../lib/overpass'
 import { chercherNotesGoogle, lienAvisGoogle, type NoteGoogle } from '../lib/placesRatings'
 import { useTripData } from '../state/TripDataContext'
 import type { LatLng } from '../types/db'
 
 const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon: LucideIcon }> = {
+  remarquable: { label: 'Lieu remarquable', couleur: '#E8C45A', Icon: Sparkles },
+  viewpoint: { label: 'Point de vue', couleur: '#9B8CFF', Icon: Telescope },
+  beach: { label: 'Plage / baignade', couleur: '#6FB8FF', Icon: Waves },
+  picnic: { label: 'Pique-nique / feu', couleur: '#F0A35E', Icon: Flame },
   camp_site: { label: 'Camping', couleur: '#7FD08C', Icon: Tent },
   caravan_site: { label: 'Camping-car / van', couleur: '#F0C04A', Icon: Caravan },
+  rest_area: { label: 'Aire de repos', couleur: '#8FB0C2', Icon: SquareParking },
+  gapahuk: { label: 'Gapahuk', couleur: '#5BBFBA', Icon: TreePine },
+  shelter: { label: 'Abri', couleur: '#A7B0BF', Icon: Umbrella },
   wilderness_hut: { label: 'Refuge non gardé', couleur: '#E8824A', Icon: Home },
   alpine_hut: { label: 'Refuge gardé', couleur: '#FF7FA0', Icon: Mountain },
-  gapahuk: { label: 'Gapahuk', couleur: '#5BBFBA', Icon: TreePine },
-  shelter: { label: 'Abri', couleur: '#9B8CFF', Icon: Umbrella },
 }
 
 const RAYONS = [5, 10, 20, 50] as const
@@ -110,7 +120,19 @@ export default function BivouacsPage(): ReactNode {
   )
   const [rayon, setRayon] = useState<number>(20)
   const [filtres, setFiltres] = useState<Set<SousTypeBivouac>>(
-    new Set<SousTypeBivouac>(['camp_site', 'caravan_site', 'wilderness_hut', 'alpine_hut', 'gapahuk', 'shelter']),
+    new Set<SousTypeBivouac>([
+      'remarquable',
+      'viewpoint',
+      'beach',
+      'picnic',
+      'camp_site',
+      'caravan_site',
+      'rest_area',
+      'gapahuk',
+      'shelter',
+      'wilderness_hut',
+      'alpine_hut',
+    ]),
   )
   const [inclureSansNom, setInclureSansNom] = useState(false)
   const [chargement, setChargement] = useState(false)
@@ -149,8 +171,14 @@ export default function BivouacsPage(): ReactNode {
     setNotes({})
 
     try {
-      const resultats = await chercherBivouacs(lat, lng, rayonKm, ctrl.signal)
+      // OSM (campings, refuges, spots nature) + lieux remarquables communautaires
+      // (/api/spots) en parallèle ; ce dernier renvoie [] s'il est indisponible.
+      const [bivouacs, remarquables] = await Promise.all([
+        chercherBivouacs(lat, lng, rayonKm, ctrl.signal),
+        chercherLieuxRemarquables(lat, lng, rayonKm, ctrl.signal),
+      ])
       if (ctrl.signal.aborted) return
+      const resultats = [...bivouacs, ...remarquables].sort((a, b) => a.distanceKm - b.distanceKm)
       setSpots(resultats)
       setNotesChargement(true)
       void chercherNotesGoogle(lat, lng, rayonKm, resultats)
@@ -208,7 +236,8 @@ export default function BivouacsPage(): ReactNode {
       lat: spot.lat,
       lng: spot.lng,
       nom: libelleSpot(spot),
-      categorie: 'bivouac',
+      categorie:
+        spot.sousType === 'viewpoint' ? 'vue_panoramique' : spot.sousType === 'remarquable' ? 'activite' : 'bivouac',
       note: notePrefill(spot),
     }
     // Encode prefill in URL state so PoisPage can pick it up
@@ -484,7 +513,7 @@ export default function BivouacsPage(): ReactNode {
                   <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">
                     © contributeurs OpenStreetMap
                   </a>
-                  {' · avis : Google Maps'}
+                  {' · lieux remarquables : Wikipédia · avis : Google Maps'}
                 </p>
               )}
             </div>

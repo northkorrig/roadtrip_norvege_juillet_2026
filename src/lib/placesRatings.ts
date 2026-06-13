@@ -22,26 +22,26 @@ export function lienAvisGoogle(placeId: string): string {
 }
 
 /**
- * Récupère les campings notés sur Google Places autour d'un point, puis les
- * associe aux spots OSM par proximité (< 300 m, le plus proche gagne).
- * Retourne un index osmId → note. Vide si l'API Places n'est pas dispo.
+ * Types Google Places interrogés. On ne se limite plus aux campings : les
+ * "spots remarquables" (points de vue, plages, aires de pique-nique) sont
+ * référencés sous tourist_attraction / natural_feature et portent eux aussi
+ * des avis de la communauté.
  */
-export async function chercherNotesGoogle(
+const TYPES_PLACES = ['campground', 'tourist_attraction', 'natural_feature'] as const
+
+/** Une passe de nearbySearch (jusqu'à 60 résultats, 3 pages). */
+function nearbyNotes(
+  service: google.maps.places.PlacesService,
   lat: number,
   lng: number,
   rayonKm: number,
-  spots: SpotBivouac[],
-): Promise<Record<string, NoteGoogle>> {
-  if (typeof google === 'undefined' || !google.maps?.places) return {}
-  if (spots.length === 0) return {}
-
-  const service = new google.maps.places.PlacesService(document.createElement('div'))
-  const places: PlaceBrut[] = []
-
-  await new Promise<void>((resolve) => {
+  type: string,
+): Promise<PlaceBrut[]> {
+  return new Promise((resolve) => {
+    const places: PlaceBrut[] = []
     let pages = 0
     service.nearbySearch(
-      { location: { lat, lng }, radius: Math.min(rayonKm, 50) * 1000, type: 'campground' },
+      { location: { lat, lng }, radius: Math.min(rayonKm, 50) * 1000, type },
       (results, status, pagination) => {
         if (status === 'OK' && results) {
           for (const r of results) {
@@ -54,17 +54,36 @@ export async function chercherNotesGoogle(
             })
           }
           pages += 1
-          // Jusqu'à 60 résultats (3 pages) — Google impose ~2 s entre les pages,
-          // et nextPage() rappelle ce même callback.
+          // Google impose ~2 s entre les pages, et nextPage() rappelle ce callback.
           if (pagination?.hasNextPage && pages < 3) {
             pagination.nextPage()
             return
           }
         }
-        resolve()
+        resolve(places)
       },
     )
   })
+}
+
+/**
+ * Récupère les lieux notés sur Google Places autour d'un point (campings et
+ * spots remarquables), puis les associe aux spots OSM par proximité (< 300 m,
+ * le plus proche gagne). Retourne un index osmId → note. Vide si l'API Places
+ * n'est pas dispo.
+ */
+export async function chercherNotesGoogle(
+  lat: number,
+  lng: number,
+  rayonKm: number,
+  spots: SpotBivouac[],
+): Promise<Record<string, NoteGoogle>> {
+  if (typeof google === 'undefined' || !google.maps?.places) return {}
+  if (spots.length === 0) return {}
+
+  const service = new google.maps.places.PlacesService(document.createElement('div'))
+  const lots = await Promise.all(TYPES_PLACES.map((t) => nearbyNotes(service, lat, lng, rayonKm, t)))
+  const places: PlaceBrut[] = lots.flat()
 
   const out: Record<string, NoteGoogle> = {}
   for (const spot of spots) {
