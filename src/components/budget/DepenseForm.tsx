@@ -17,14 +17,15 @@ interface FormDepense {
   date: string
   personne: string
   note: string
+  etapeId: string
 }
 
-const FORM_VIDE: FormDepense = { label: '', montant: '', categorie: 'divers', date: '', personne: 'Commun', note: '' }
+const FORM_VIDE: FormDepense = { label: '', montant: '', categorie: 'divers', date: '', personne: 'Commun', note: '', etapeId: '' }
 
 export const PERSONNES = [...TRIP_META.voyageurs, 'Commun']
 
 export default function DepenseForm({ ouvert, depense, onFermer }: DepenseFormProps): ReactNode {
-  const { creerDepense, modifierDepense } = useTripData()
+  const { creerDepense, modifierDepense, etapes } = useTripData()
   const executer = useAction()
   const toast = useToast()
   const [form, setForm] = useState<FormDepense>(FORM_VIDE)
@@ -40,6 +41,7 @@ export default function DepenseForm({ ouvert, depense, onFermer }: DepenseFormPr
             date: depense.date ?? '',
             personne: depense.personne ?? 'Commun',
             note: depense.note ?? '',
+            etapeId: depense.etape_id ?? '',
           }
         : FORM_VIDE,
     )
@@ -62,6 +64,7 @@ export default function DepenseForm({ ouvert, depense, onFermer }: DepenseFormPr
       date: form.date || null,
       personne: form.personne || null,
       note: form.note.trim() || null,
+      etape_id: form.etapeId || null,
     }
     await executer(async () => {
       if (depense) await modifierDepense(depense.id, input)
@@ -110,6 +113,32 @@ export default function DepenseForm({ ouvert, depense, onFermer }: DepenseFormPr
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="dep-etape">Étape liée</label>
+          <select
+            id="dep-etape"
+            className="input"
+            value={form.etapeId}
+            onChange={(e) => {
+              const etape = etapes.find((et) => et.id === e.target.value)
+              setForm((f) => ({
+                ...f,
+                etapeId: e.target.value,
+                // pré-remplit la date depuis l'étape si non encore renseignée
+                date: f.date || etape?.date || '',
+              }))
+            }}
+          >
+            <option value="">Aucune (coût général)</option>
+            {etapes.map((et, i) => (
+              <option key={et.id} value={et.id}>
+                J{i + 1} · {et.nom}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-cream-dim">Rattacher la dépense à un jour pour le coût par étape.</p>
         </div>
 
         <div>

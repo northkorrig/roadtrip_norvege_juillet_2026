@@ -78,6 +78,8 @@ export interface Depense {
   date: string | null
   personne: string | null
   note: string | null
+  /** Étape à laquelle rattacher la dépense (coût par jour). `on delete set null`. */
+  etape_id: string | null
   created_at: string
 }
 

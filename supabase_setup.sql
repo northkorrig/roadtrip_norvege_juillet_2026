@@ -71,6 +71,7 @@ create table if not exists public.depenses (
   date       date,
   personne   text,
   note       text,
+  etape_id   uuid references public.etapes(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -85,6 +86,7 @@ create index if not exists pois_jour_idx     on public.pois (jour);
 create index if not exists notes_poi_idx     on public.notes (poi_id);
 create index if not exists taches_ordre_idx  on public.taches (ordre);
 create index if not exists depenses_date_idx on public.depenses (date);
+create index if not exists depenses_etape_idx on public.depenses (etape_id);
 
 -- ------------------------------------------------------------
 -- updated_at automatique sur notes

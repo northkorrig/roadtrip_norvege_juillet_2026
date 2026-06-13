@@ -1,15 +1,24 @@
 import {
   DndContext,
-  PointerSensor,
+  KeyboardSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Clock, Milestone } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { fmtDuree, fmtKm } from '../../lib/format'
 import { useReadonly } from '../../state/TripDataContext'
 import type { Etape, Poi } from '../../types/db'
 import EtapeCard, { PoigneeDrag } from './EtapeCard'
@@ -72,13 +81,17 @@ export default function Timeline({
   onEdit,
   onReorder,
 }: TimelineProps): ReactNode {
-  // Sur iOS, le PointerSensor entre en conflit avec le scroll de page. Le
-  // TouchSensor avec un délai d'activation (250 ms) distingue clairement un
-  // appui maintenu (drag) d'un simple défilement.
+  // Souris : démarre au-delà de 8 px (laisse passer les clics).
+  // Tactile : appui maintenu 200 ms avant de saisir, pour ne pas bloquer le scroll
+  //   vertical de la liste sur mobile (problème connu de dnd-kit avec PointerSensor).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  const totalKm = etapes.reduce((s, e) => s + (e.km_depuis_precedent ?? 0), 0)
+  const totalMin = etapes.reduce((s, e) => s + (e.duree_min ?? 0), 0)
 
   const finDrag = (event: DragEndEvent): void => {
     const { active, over } = event
@@ -114,6 +127,21 @@ export default function Timeline({
           ))}
         </ol>
       </SortableContext>
+
+      {/* Agrégat automatique : distance et temps de route cumulés */}
+      {etapes.length > 0 && (
+        <div className="mt-3 ml-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+          <span className="font-display font-semibold text-cream">Total du trajet</span>
+          <span className="inline-flex items-center gap-1.5 text-cream-dim">
+            <Milestone className="h-4 w-4 text-glacier" />
+            <strong className="text-cream tabular-nums">{fmtKm(totalKm)}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-cream-dim">
+            <Clock className="h-4 w-4 text-glacier" />
+            <strong className="text-cream tabular-nums">{fmtDuree(totalMin)}</strong> de route
+          </span>
+        </div>
+      )}
     </DndContext>
   )
 }

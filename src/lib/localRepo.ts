@@ -107,8 +107,9 @@ export function createLocalRepo(): TripRepo {
     createEtape: (input) => create('etapes', { ...input, id: newId(), created_at: nowIso() }),
     updateEtape: (id, patch) => update('etapes', id, patch),
     deleteEtape: async (id) => {
-      // réplique le `on delete set null` de la FK pois.etape_id
+      // réplique les `on delete set null` des FK pois.etape_id et depenses.etape_id
       mutate('pois', (rows) => rows.map((p) => (p.etape_id === id ? { ...p, etape_id: null } : p)))
+      mutate('depenses', (rows) => rows.map((d) => (d.etape_id === id ? { ...d, etape_id: null } : d)))
       await remove('etapes', id)
     },
 

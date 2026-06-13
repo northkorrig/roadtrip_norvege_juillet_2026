@@ -169,6 +169,7 @@ export function TripDataProvider({ children }: { children: ReactNode }): ReactNo
         await repo.deleteEtape(id)
         setEtapes((prev) => prev.filter((e) => e.id !== id))
         setPois((prev) => prev.map((p) => (p.etape_id === id ? { ...p, etape_id: null } : p)))
+        setDepenses((prev) => prev.map((d) => (d.etape_id === id ? { ...d, etape_id: null } : d)))
       },
       reordonnerEtapes: async (ids) => {
         setEtapes((prev) => {

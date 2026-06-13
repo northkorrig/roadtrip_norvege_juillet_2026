@@ -1,14 +1,21 @@
-import { CloudSun, Droplets, Wind } from 'lucide-react'
+import { CloudSun, Droplets, Thermometer, Wind } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { TRIP_DAYS } from '../../config/constants'
 import { fmtDateCourte } from '../../lib/format'
-import { descriptionMeteo, fetchMeteo, type MeteoResult } from '../../lib/weather'
+import {
+  descriptionMeteo,
+  fetchClimatologieJuillet,
+  fetchMeteo,
+  type ClimatologieJuillet,
+  type MeteoResult,
+} from '../../lib/weather'
 import { useTripData } from '../../state/TripDataContext'
 import { Spinner } from '../ui'
 
 /**
- * Météo par étape via Open-Meteo (sans clé API). Les prévisions n'existent
- * qu'à ~15 jours : avant cela, on affiche les normales de juillet.
+ * Météo par étape via Open-Meteo (sans clé API). Les prévisions n'existent qu'à
+ * ~15 jours : au-delà, on affiche les normales climatiques de juillet, calculées
+ * à partir des données historiques (réanalyse ERA5) à la position de l'étape.
  */
 export default function WeatherWidget(): ReactNode {
   const { etapes } = useTripData()
@@ -17,6 +24,8 @@ export default function WeatherWidget(): ReactNode {
   const [meteo, setMeteo] = useState<MeteoResult | null>(null)
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [climato, setClimato] = useState<ClimatologieJuillet | null>(null)
+  const [climatoChargement, setClimatoChargement] = useState(false)
 
   const etape = geolocalisees.find((e) => e.id === etapeId) ?? geolocalisees[0] ?? null
 
@@ -41,6 +50,27 @@ export default function WeatherWidget(): ReactNode {
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [etape?.id])
+
+  // Hors horizon de prévision → on charge les normales de juillet (historique).
+  useEffect(() => {
+    if (!etape || !meteo || meteo.disponible) {
+      setClimato(null)
+      return
+    }
+    const controller = new AbortController()
+    setClimatoChargement(true)
+    setClimato(null)
+    fetchClimatologieJuillet(etape.lat as number, etape.lng as number, controller.signal)
+      .then((r) => setClimato(r))
+      .catch(() => {
+        if (!controller.signal.aborted) setClimato(null)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setClimatoChargement(false)
+      })
+    return () => controller.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etape?.id, meteo])
 
   if (!etape) return null
 
@@ -75,12 +105,57 @@ export default function WeatherWidget(): ReactNode {
 
       {!chargement && !erreur && meteo && !meteo.disponible && (
         <div className="glass-soft px-4 py-3 text-sm text-cream-dim">
-          <p className="mb-1 font-semibold text-cream">Prévisions disponibles ~15 jours avant le départ.</p>
-          <p>
-            Normales de juillet ({etape.nom.split('—')[0].trim()}) : <strong className="text-cream">10 à 20 °C</strong>,
-            averses fréquentes sur les fjords, vent soutenu sur les plateaux (Hardangervidda, Valdresflye). Soleil
-            jusqu’à ~22h30.
-          </p>
+          {climatoChargement && (
+            <div className="flex items-center gap-3 py-1">
+              <Spinner className="h-4 w-4" /> Calcul des normales de juillet (historique)…
+            </div>
+          )}
+
+          {!climatoChargement && climato && (
+            <>
+              <p className="mb-2 font-semibold text-cream">
+                Normales de juillet — {etape.nom.split('—')[0].split('→')[0].trim()} (moyenne {climato.annees} ans)
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-cream-dim">
+                    <Thermometer className="h-3 w-3" /> Max
+                  </p>
+                  <p className="text-lg font-semibold tabular-nums text-cream">~{climato.tMaxMoy}°</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-cream-dim">
+                    <Thermometer className="h-3 w-3" /> Min
+                  </p>
+                  <p className="text-lg font-semibold tabular-nums text-cream">~{climato.tMinMoy}°</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-cream-dim">
+                    <Droplets className="h-3 w-3" /> Jours de pluie
+                  </p>
+                  <p className="text-lg font-semibold tabular-nums text-cream">{climato.pctJoursPluie}%</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-cream-dim">
+                    <Wind className="h-3 w-3" /> Vent
+                  </p>
+                  <p className="text-lg font-semibold tabular-nums text-cream">~{climato.ventMoy} km/h</p>
+                </div>
+              </div>
+              <p className="mt-2 text-xs">
+                {climato.precipMoyJour} mm/jour en moyenne · données historiques Open-Meteo (ERA5). Prévisions précises
+                disponibles ~15 jours avant le départ.
+              </p>
+            </>
+          )}
+
+          {!climatoChargement && !climato && (
+            <p>
+              <span className="font-semibold text-cream">Prévisions disponibles ~15 jours avant le départ.</span>{' '}
+              Normales de juillet : <strong className="text-cream">10 à 20 °C</strong>, averses fréquentes sur les
+              fjords, vent soutenu sur les plateaux. Soleil jusqu’à ~22h30.
+            </p>
+          )}
         </div>
       )}
 

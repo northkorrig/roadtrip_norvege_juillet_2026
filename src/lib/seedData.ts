@@ -170,19 +170,19 @@ export const SEED_TACHES: Tache[] = [
 ]
 
 export const SEED_DEPENSES: Depense[] = [
-  { id: did(1), label: 'Train Rennes → Paris CDG (×2)', montant: 150, categorie: 'transport', date: '2026-07-13', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(2), label: 'Hôtel Paris — nuit du 13 juillet', montant: 150, categorie: 'hebergement', date: '2026-07-13', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(3), label: 'Vols CDG ↔ Oslo A/R (×2)', montant: 600, categorie: 'transport', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(4), label: 'Location van 12 jours — Arctic Campers', montant: 2078, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(5), label: 'Péages — flat fee Arctic Campers', montant: 103, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(6), label: 'Frais de service van', montant: 55, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(7), label: 'Assurance MAX CV', montant: 284, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(8), label: 'Kit literie', montant: 59, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(9), label: 'Sacs de couchage', montant: 42, categorie: 'divers', date: '2026-07-01', personne: 'Commun', note: 'Achat avant départ', created_at: T0 },
-  { id: did(10), label: 'Carburant (~1 500 km à 9 L/100, 1,60 €/L)', montant: 216, categorie: 'carburant', date: '2026-07-20', personne: 'Commun', note: 'Estimation à répartir sur le voyage', created_at: T0 },
-  { id: did(11), label: 'Croisière Nærøyfjord (2 pers)', montant: 70, categorie: 'activites', date: '2026-07-20', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(12), label: 'Flåmsbana (2 pers)', montant: 70, categorie: 'activites', date: '2026-07-21', personne: 'Commun', note: null, created_at: T0 },
-  { id: did(13), label: 'Bateau Gjende (2 pers)', montant: 40, categorie: 'activites', date: '2026-07-24', personne: 'Commun', note: null, created_at: T0 },
+  { id: did(1), label: 'Train Rennes → Paris CDG (×2)', montant: 150, categorie: 'transport', date: '2026-07-13', personne: 'Commun', note: null, etape_id: null, created_at: T0 },
+  { id: did(2), label: 'Hôtel Paris — nuit du 13 juillet', montant: 150, categorie: 'hebergement', date: '2026-07-13', personne: 'Commun', note: null, etape_id: null, created_at: T0 },
+  { id: did(3), label: 'Vols CDG ↔ Oslo A/R (×2)', montant: 600, categorie: 'transport', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(4), label: 'Location van 12 jours — Arctic Campers', montant: 2078, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(5), label: 'Péages — flat fee Arctic Campers', montant: 103, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(6), label: 'Frais de service van', montant: 55, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(7), label: 'Assurance MAX CV', montant: 284, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(8), label: 'Kit literie', montant: 59, categorie: 'van', date: '2026-07-14', personne: 'Commun', note: null, etape_id: eid(1), created_at: T0 },
+  { id: did(9), label: 'Sacs de couchage', montant: 42, categorie: 'divers', date: '2026-07-01', personne: 'Commun', note: 'Achat avant départ', etape_id: null, created_at: T0 },
+  { id: did(10), label: 'Carburant (~1 500 km à 9 L/100, 1,60 €/L)', montant: 216, categorie: 'carburant', date: '2026-07-20', personne: 'Commun', note: 'Estimation à répartir sur le voyage', etape_id: null, created_at: T0 },
+  { id: did(11), label: 'Croisière Nærøyfjord (2 pers)', montant: 70, categorie: 'activites', date: '2026-07-20', personne: 'Commun', note: null, etape_id: eid(7), created_at: T0 },
+  { id: did(12), label: 'Flåmsbana (2 pers)', montant: 70, categorie: 'activites', date: '2026-07-21', personne: 'Commun', note: null, etape_id: eid(8), created_at: T0 },
+  { id: did(13), label: 'Bateau Gjende (2 pers)', montant: 40, categorie: 'activites', date: '2026-07-24', personne: 'Commun', note: null, etape_id: eid(11), created_at: T0 },
 ]
 
 export const SEED_RESERVATIONS: Reservation[] = [

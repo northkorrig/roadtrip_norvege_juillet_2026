@@ -1,5 +1,6 @@
-import { CalendarCheck, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarCheck, MapPin, Pencil, Plus, TrendingUp, Trash2 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
+import BudgetTimeline from '../components/budget/BudgetTimeline'
 import DepenseForm, { PERSONNES } from '../components/budget/DepenseForm'
 import DonutChart from '../components/budget/DonutChart'
 import Reservations from '../components/budget/Reservations'
@@ -24,7 +25,7 @@ import { useReadonly, useTripData } from '../state/TripDataContext'
 import type { Depense, DepenseCategorie } from '../types/db'
 
 export default function BudgetPage(): ReactNode {
-  const { depenses, chargement, erreur, recharger, supprimerDepense } = useTripData()
+  const { depenses, etapes, chargement, erreur, recharger, supprimerDepense } = useTripData()
   const readonly = useReadonly()
   const executer = useAction()
 
@@ -53,6 +54,28 @@ export default function BudgetPage(): ReactNode {
         couleur: DEPENSE_CATEGORIES[c].couleur,
         valeur: depenses.filter((d) => d.categorie === c).reduce((s, d) => s + d.montant, 0),
       })),
+    [depenses],
+  )
+
+  // Coût par étape : somme des dépenses rattachées à chaque étape (coût par jour)
+  const coutParEtape = useMemo(() => {
+    const total = new Map<string, number>()
+    for (const d of depenses) {
+      if (d.etape_id) total.set(d.etape_id, (total.get(d.etape_id) ?? 0) + d.montant)
+    }
+    return etapes
+      .map((e, i) => ({ etape: e, index: i, total: total.get(e.id) ?? 0 }))
+      .filter((x) => x.total > 0)
+  }, [depenses, etapes])
+
+  const labelEtape = useMemo(() => {
+    const m = new Map<string, string>()
+    etapes.forEach((e, i) => m.set(e.id, `J${i + 1} · ${e.nom}`))
+    return m
+  }, [etapes])
+
+  const totalNonRattache = useMemo(
+    () => depenses.filter((d) => !d.etape_id).reduce((s, d) => s + d.montant, 0),
     [depenses],
   )
 
@@ -265,6 +288,7 @@ export default function BudgetPage(): ReactNode {
                         <p className="truncate text-sm font-medium text-cream">{d.label}</p>
                         <p className="text-[11px] text-cream-dim">
                           {fmtDateCourte(d.date)} · {d.personne ?? 'Commun'}
+                          {d.etape_id && labelEtape.has(d.etape_id) ? ` · ${labelEtape.get(d.etape_id)}` : ''}
                           {d.note ? ` · ${d.note}` : ''}
                         </p>
                       </div>
@@ -297,6 +321,49 @@ export default function BudgetPage(): ReactNode {
                     </li>
                   )
                 })}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* Évolution dans le temps + coût par étape */}
+        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <section className="glass p-5">
+            <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold">
+              <TrendingUp className="h-5 w-5 text-glacier" /> Évolution dans le temps
+            </h2>
+            <BudgetTimeline depenses={depenses} budget={budget} fmt={fmt} />
+          </section>
+
+          <section className="glass p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold">
+              <MapPin className="h-5 w-5 text-glacier" /> Coût par étape
+            </h2>
+            {coutParEtape.length === 0 ? (
+              <EmptyState
+                titre="Aucune dépense rattachée"
+                detail="Associe une dépense à une étape (champ « Étape liée ») pour suivre le coût par jour."
+              />
+            ) : (
+              <ul className="space-y-1.5">
+                {coutParEtape.map(({ etape, index, total }) => (
+                  <li key={etape.id} className="flex items-center gap-2.5 text-sm">
+                    <span className="flex h-6 w-7 shrink-0 items-center justify-center rounded bg-ember/15 text-[11px] font-bold text-ember-soft">
+                      J{index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-cream-dim">{etape.nom}</span>
+                    <span className="shrink-0 tabular-nums text-cream">{fmt(total)}</span>
+                  </li>
+                ))}
+                {totalNonRattache > 0 && (
+                  <li className="flex items-center gap-2.5 border-t border-white/[0.06] pt-2 text-sm">
+                    <span className="flex h-6 w-7 shrink-0 items-center justify-center rounded bg-white/[0.06] text-[11px] text-cream-dim">
+                      —
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-cream-dim">Non rattaché à une étape</span>
+                    <span className="shrink-0 tabular-nums text-cream-dim">{fmt(totalNonRattache)}</span>
+                  </li>
+                )}
               </ul>
             )}
           </section>
