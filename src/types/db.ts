@@ -81,13 +81,24 @@ export interface Depense {
   created_at: string
 }
 
+/** Observation du pokédex faune — une ligne par espèce, partagée entre les voyageurs. */
+export interface PokedexObservation {
+  animal_id: string
+  vu: boolean
+  date: string | null
+  lieu: string
+  note: string
+  created_at: string
+}
+
 export type EtapeInput = Omit<Etape, 'id' | 'created_at'>
 export type PoiInput = Omit<Poi, 'id' | 'created_at'>
 export type NoteInput = Omit<Note, 'id' | 'created_at' | 'updated_at'>
 export type TacheInput = Omit<Tache, 'id' | 'created_at'>
 export type DepenseInput = Omit<Depense, 'id' | 'created_at'>
+export type PokedexObservationInput = Omit<PokedexObservation, 'created_at'>
 
-export type TableName = 'etapes' | 'pois' | 'notes' | 'taches' | 'depenses'
+export type TableName = 'etapes' | 'pois' | 'notes' | 'taches' | 'depenses' | 'pokedex_observations'
 
 /** Réservations — persistées en localStorage (pas de table dédiée dans le schéma). */
 export type ReservationStatut = 'a_faire' | 'en_cours' | 'confirme'

@@ -7,6 +7,8 @@ import type {
   NoteInput,
   Poi,
   PoiInput,
+  PokedexObservation,
+  PokedexObservationInput,
   TableName,
   Tache,
   TacheInput,
@@ -48,6 +50,11 @@ export interface TripRepo {
   createDepense(input: DepenseInput): Promise<Depense>
   updateDepense(id: string, patch: Partial<DepenseInput>): Promise<Depense>
   deleteDepense(id: string): Promise<void>
+
+  listPokedex(): Promise<PokedexObservation[]>
+  /** Crée ou met à jour l'observation d'une espèce (clé = animal_id). */
+  upsertPokedex(input: PokedexObservationInput): Promise<PokedexObservation>
+  deletePokedex(animalId: string): Promise<void>
 
   /** Réécrit la colonne `ordre` (0..n) en suivant l'ordre des ids fournis. */
   setOrdres(table: 'etapes' | 'pois' | 'taches', ids: string[]): Promise<void>
