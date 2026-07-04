@@ -1,0 +1,369 @@
+import { Check, MapPin, PawPrint, RotateCcw, Search, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { ConfirmDialog, Modal, PageTransition } from '../components/ui'
+import { LS_KEYS } from '../config/constants'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+import {
+  ANIMAL_CATEGORIES,
+  ANIMAL_CATEGORIE_LIST,
+  ANIMAL_RARETES,
+  ANIMAUX,
+  OBSERVATION_VIDE,
+  POKEDEX_LIEUX,
+  type Animal,
+  type AnimalCategorie,
+  type Observation,
+} from '../lib/pokedexData'
+
+type FiltreVu = 'tous' | 'vus' | 'a_trouver'
+type PokedexState = Record<string, Observation>
+
+const aujourdhui = (): string => new Date().toISOString().split('T')[0]
+
+/** Normalise pour la recherche : minuscules + sans accents. */
+const normaliser = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+export default function PokedexPage(): ReactNode {
+  const [observations, setObservations] = useLocalStorage<PokedexState>(LS_KEYS.pokedex, {})
+
+  const [recherche, setRecherche] = useState('')
+  const [categorie, setCategorie] = useState<AnimalCategorie | 'toutes'>('toutes')
+  const [lieu, setLieu] = useState<string>('tous')
+  const [filtreVu, setFiltreVu] = useState<FiltreVu>('tous')
+  const [detail, setDetail] = useState<Animal | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+
+  const obs = (id: string): Observation => observations[id] ?? OBSERVATION_VIDE
+
+  const patcher = (id: string, patch: Partial<Observation>): void => {
+    setObservations((prev) => ({ ...prev, [id]: { ...(prev[id] ?? OBSERVATION_VIDE), ...patch } }))
+  }
+
+  const basculerVu = (animal: Animal): void => {
+    const o = obs(animal.id)
+    patcher(animal.id, o.vu ? { vu: false } : { vu: true, date: o.date ?? aujourdhui() })
+  }
+
+  const nbVus = useMemo(() => ANIMAUX.filter((a) => obs(a.id).vu).length, [observations])
+
+  const filtres = useMemo(() => {
+    const q = normaliser(recherche.trim())
+    return ANIMAUX.filter((a) => {
+      if (categorie !== 'toutes' && a.categorie !== categorie) return false
+      if (lieu !== 'tous' && !a.partout && !a.lieux.includes(lieu)) return false
+      const vu = obs(a.id).vu
+      if (filtreVu === 'vus' && !vu) return false
+      if (filtreVu === 'a_trouver' && vu) return false
+      if (q) {
+        const corpus = normaliser(
+          [a.nom, a.nomLatin, a.conseils, ...a.lieux, obs(a.id).note, obs(a.id).lieu].join(' '),
+        )
+        if (!corpus.includes(q)) return false
+      }
+      return true
+    })
+  }, [recherche, categorie, lieu, filtreVu, observations])
+
+  const detailObs = detail ? obs(detail.id) : null
+
+  return (
+    <PageTransition>
+      <div className="mx-auto max-w-7xl px-3 pb-24 pt-[4.75rem] sm:px-4 md:pb-10">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-bold sm:text-3xl">Pokédex norvégien</h1>
+            <p className="text-xs text-cream-dim">
+              La faune à débusquer le long de l’itinéraire — coche tes observations, attrape-les toutes !
+            </p>
+          </div>
+          {nbVus > 0 && (
+            <button
+              type="button"
+              className="btn-ghost px-3 py-1.5 text-xs"
+              onClick={() => setConfirmReset(true)}
+              title="Réinitialiser toutes les observations"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
+            </button>
+          )}
+        </div>
+
+        {/* Progression */}
+        <div className="glass mb-5 p-4 sm:p-5">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <PawPrint className="h-4 w-4 text-glacier" />
+              {nbVus} / {ANIMAUX.length} espèces observées
+            </p>
+            <p className="text-xs text-cream-dim">
+              {nbVus === ANIMAUX.length
+                ? '🏆 Pokédex complet !'
+                : `Encore ${ANIMAUX.length - nbVus} à trouver`}
+            </p>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-glacier to-ember transition-all duration-500"
+              style={{ width: `${(nbVus / ANIMAUX.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Recherche + filtres */}
+        <div className="mb-5 space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-cream-dim/60" />
+            <input
+              type="search"
+              className="input pl-10"
+              placeholder="Rechercher un animal, un lieu, un mot-clé…"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 overflow-x-auto rounded-xl bg-white/[0.06] p-1">
+              <button
+                type="button"
+                onClick={() => setCategorie('toutes')}
+                className={`chip shrink-0 ${categorie === 'toutes' ? 'bg-glacier/20 text-glacier' : 'text-cream-dim'}`}
+              >
+                Toutes
+              </button>
+              {ANIMAL_CATEGORIE_LIST.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategorie(c)}
+                  className={`chip shrink-0 ${categorie === c ? 'bg-glacier/20 text-glacier' : 'text-cream-dim'}`}
+                >
+                  {ANIMAL_CATEGORIES[c].emoji} {ANIMAL_CATEGORIES[c].label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-1 rounded-xl bg-white/[0.06] p-1">
+              {(
+                [
+                  { id: 'tous', label: 'Tous' },
+                  { id: 'vus', label: '✓ Vus' },
+                  { id: 'a_trouver', label: 'À trouver' },
+                ] as { id: FiltreVu; label: string }[]
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFiltreVu(id)}
+                  className={`chip shrink-0 ${filtreVu === id ? 'bg-glacier/20 text-glacier' : 'text-cream-dim'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <select
+              className="input w-auto min-w-[10rem] py-2 text-xs"
+              value={lieu}
+              onChange={(e) => setLieu(e.target.value)}
+              aria-label="Filtrer par lieu"
+            >
+              <option value="tous">📍 Tous les lieux</option>
+              {POKEDEX_LIEUX.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Grille d'espèces */}
+        {filtres.length === 0 ? (
+          <div className="glass-soft flex flex-col items-center gap-1.5 px-6 py-10 text-center">
+            <p className="font-display text-lg">Aucune espèce ne correspond</p>
+            <p className="text-sm text-cream-dim">Essaie d’élargir la recherche ou les filtres.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtres.map((animal) => {
+              const o = obs(animal.id)
+              const rarete = ANIMAL_RARETES[animal.rarete]
+              return (
+                <article
+                  key={animal.id}
+                  className={`glass relative cursor-pointer p-4 transition-all hover:bg-white/[0.09] ${
+                    o.vu ? 'border-glacier/40' : ''
+                  }`}
+                  onClick={() => setDetail(animal)}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
+                        o.vu ? 'bg-glacier/15' : 'bg-white/[0.06] grayscale'
+                      }`}
+                      aria-hidden
+                    >
+                      {animal.emoji}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate font-display text-base font-semibold leading-snug">
+                        {animal.nom}
+                      </h2>
+                      <p className="truncate text-[11px] italic text-cream-dim/70">{animal.nomLatin}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <span className={`chip px-2 py-0.5 text-[10px] ${rarete.classes}`}>{rarete.label}</span>
+                        <span className="chip bg-white/[0.07] px-2 py-0.5 text-[10px] text-cream-dim">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {animal.partout ? 'Tout l’itinéraire' : animal.lieux[0]}
+                          {!animal.partout && animal.lieux.length > 1 && ` +${animal.lieux.length - 1}`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        basculerVu(animal)
+                      }}
+                      aria-label={o.vu ? `Marquer ${animal.nom} comme non vu` : `Marquer ${animal.nom} comme vu`}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                        o.vu
+                          ? 'border-glacier bg-glacier text-night-deep'
+                          : 'border-white/20 text-transparent hover:border-glacier/60'
+                      }`}
+                    >
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </button>
+                  </div>
+                  {o.vu && (o.date || o.lieu || o.note) && (
+                    <p className="mt-2.5 truncate border-t border-white/[0.06] pt-2 text-[11px] text-glacier">
+                      ✓ Vu {o.date && `le ${new Date(o.date).toLocaleDateString('fr-FR')}`}
+                      {o.lieu && ` · ${o.lieu}`}
+                      {o.note && ` — ${o.note}`}
+                    </p>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Fiche détail */}
+      <Modal ouvert={detail !== null} onFermer={() => setDetail(null)} titre={detail ? `${detail.emoji} ${detail.nom}` : ''}>
+        {detail && detailObs && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm italic text-cream-dim">{detail.nomLatin}</span>
+              <span className={`chip px-2 py-0.5 text-[10px] ${ANIMAL_RARETES[detail.rarete].classes}`}>
+                {ANIMAL_RARETES[detail.rarete].label}
+              </span>
+              <span className="chip bg-white/[0.07] px-2 py-0.5 text-[10px] text-cream-dim">
+                {ANIMAL_CATEGORIES[detail.categorie].emoji} {ANIMAL_CATEGORIES[detail.categorie].label}
+              </span>
+            </div>
+
+            <div>
+              <p className="label">Où le trouver</p>
+              <div className="flex flex-wrap gap-1.5">
+                {detail.partout ? (
+                  <span className="chip bg-glacier/15 text-glacier">📍 Tout l’itinéraire</span>
+                ) : (
+                  detail.lieux.map((l) => (
+                    <span key={l} className="chip bg-glacier/15 text-glacier">
+                      📍 {l}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="label">Conseils d’observation</p>
+              <p className="text-sm leading-relaxed text-cream-dim">{detail.conseils}</p>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
+              <button
+                type="button"
+                onClick={() => basculerVu(detail)}
+                className={detailObs.vu ? 'btn-glacier w-full' : 'btn-primary w-full'}
+              >
+                {detailObs.vu ? (
+                  <>
+                    <X className="h-4 w-4" /> Marquer comme non vu
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" /> Je l’ai vu !
+                  </>
+                )}
+              </button>
+
+              {detailObs.vu && (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label" htmlFor="obs-date">
+                        Date
+                      </label>
+                      <input
+                        id="obs-date"
+                        type="date"
+                        className="input"
+                        value={detailObs.date ?? ''}
+                        onChange={(e) => patcher(detail.id, { date: e.target.value || null })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="obs-lieu">
+                        Lieu
+                      </label>
+                      <input
+                        id="obs-lieu"
+                        type="text"
+                        className="input"
+                        placeholder="Où l’as-tu vu ?"
+                        value={detailObs.lieu}
+                        onChange={(e) => patcher(detail.id, { lieu: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="obs-note">
+                      Note
+                    </label>
+                    <textarea
+                      id="obs-note"
+                      className="input min-h-[5rem] resize-y"
+                      placeholder="Un souvenir, une anecdote, le nombre d’individus…"
+                      value={detailObs.note}
+                      onChange={(e) => patcher(detail.id, { note: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        ouvert={confirmReset}
+        titre="Réinitialiser le pokédex ?"
+        message="Toutes les observations (coches, dates, notes) seront effacées sur cet appareil."
+        labelConfirmer="Tout effacer"
+        onConfirmer={() => {
+          setObservations({})
+          setConfirmReset(false)
+        }}
+        onAnnuler={() => setConfirmReset(false)}
+      />
+    </PageTransition>
+  )
+}

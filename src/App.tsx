@@ -13,6 +13,7 @@ const PoisPage = lazy(() => import('./pages/PoisPage'))
 const BivouacsPage = lazy(() => import('./pages/BivouacsPage'))
 const BudgetPage = lazy(() => import('./pages/BudgetPage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
+const PokedexPage = lazy(() => import('./pages/PokedexPage'))
 const SharePage = lazy(() => import('./pages/SharePage'))
 const RoadbookPage = lazy(() => import('./pages/RoadbookPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -50,6 +51,7 @@ function AppShell(): ReactNode {
           <Route path="/bivouacs" element={<ProtectedRoute><BivouacsPage /></ProtectedRoute>} />
           <Route path="/budget" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
+          <Route path="/pokedex" element={<ProtectedRoute><PokedexPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
