@@ -101,7 +101,6 @@ export const LS_KEYS = {
   nokRate: 'nok_par_eur',
   shareCode: 'share_code',
   reservations: 'reservations',
-  pokedex: 'pokedex_observations_v1',
   localDb: 'nrt_local_db_v1',
   routeCache: 'nrt_route_cache_v1',
 } as const

@@ -1,24 +1,30 @@
 import { Check, MapPin, PawPrint, RotateCcw, Search, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { ConfirmDialog, Modal, PageTransition } from '../components/ui'
-import { LS_KEYS } from '../config/constants'
-import { useLocalStorage } from '../hooks/useLocalStorage'
+import {
+  ConfirmDialog,
+  ErrorBanner,
+  LoadingScreen,
+  Modal,
+  PageTransition,
+  useAction,
+} from '../components/ui'
 import {
   ANIMAL_CATEGORIES,
   ANIMAL_CATEGORIE_LIST,
   ANIMAL_RARETES,
   ANIMAUX,
-  OBSERVATION_VIDE,
   POKEDEX_LIEUX,
   type Animal,
   type AnimalCategorie,
-  type Observation,
 } from '../lib/pokedexData'
+import { useTripData } from '../state/TripDataContext'
+import type { PokedexObservation, PokedexObservationInput } from '../types/db'
 
 type FiltreVu = 'tous' | 'vus' | 'a_trouver'
-type PokedexState = Record<string, Observation>
 
 const aujourdhui = (): string => new Date().toISOString().split('T')[0]
+
+const OBSERVATION_VIDE: PokedexObservationInput = { animal_id: '', vu: false, date: null, lieu: '', note: '' }
 
 /** Normalise pour la recherche : minuscules + sans accents. */
 const normaliser = (s: string): string =>
@@ -28,47 +34,75 @@ const normaliser = (s: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
 
 export default function PokedexPage(): ReactNode {
-  const [observations, setObservations] = useLocalStorage<PokedexState>(LS_KEYS.pokedex, {})
+  const { pokedex, chargement, erreur, recharger, observerPokedex, supprimerObservationPokedex } =
+    useTripData()
+  const executer = useAction()
 
   const [recherche, setRecherche] = useState('')
   const [categorie, setCategorie] = useState<AnimalCategorie | 'toutes'>('toutes')
   const [lieu, setLieu] = useState<string>('tous')
   const [filtreVu, setFiltreVu] = useState<FiltreVu>('tous')
   const [detail, setDetail] = useState<Animal | null>(null)
+  // Brouillon des champs de la fiche détail : persisté au blur / à la fermeture
+  // pour ne pas envoyer une requête à chaque frappe.
+  const [draft, setDraft] = useState<PokedexObservationInput | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
-  const obs = (id: string): Observation => observations[id] ?? OBSERVATION_VIDE
-
-  const patcher = (id: string, patch: Partial<Observation>): void => {
-    setObservations((prev) => ({ ...prev, [id]: { ...(prev[id] ?? OBSERVATION_VIDE), ...patch } }))
-  }
+  const parAnimal = useMemo(
+    () => new Map<string, PokedexObservation>(pokedex.map((o) => [o.animal_id, o])),
+    [pokedex],
+  )
+  const obs = (id: string): PokedexObservationInput =>
+    parAnimal.get(id) ?? { ...OBSERVATION_VIDE, animal_id: id }
 
   const basculerVu = (animal: Animal): void => {
     const o = obs(animal.id)
-    patcher(animal.id, o.vu ? { vu: false } : { vu: true, date: o.date ?? aujourdhui() })
+    const patch: PokedexObservationInput = o.vu
+      ? { ...o, vu: false }
+      : { ...o, vu: true, date: o.date ?? aujourdhui() }
+    if (detail?.id === animal.id) setDraft(patch)
+    void executer(() => observerPokedex(patch))
   }
 
-  const nbVus = useMemo(() => ANIMAUX.filter((a) => obs(a.id).vu).length, [observations])
+  const ouvrirDetail = (animal: Animal): void => {
+    setDraft(obs(animal.id))
+    setDetail(animal)
+  }
+
+  const sauverDraft = (d: PokedexObservationInput | null = draft): void => {
+    if (!d) return
+    const actuel = obs(d.animal_id)
+    const inchange =
+      actuel.vu === d.vu && actuel.date === d.date && actuel.lieu === d.lieu && actuel.note === d.note
+    if (inchange) return
+    void executer(() => observerPokedex(d))
+  }
+
+  const fermerDetail = (): void => {
+    sauverDraft()
+    setDetail(null)
+    setDraft(null)
+  }
+
+  const nbVus = useMemo(() => ANIMAUX.filter((a) => obs(a.id).vu).length, [parAnimal])
 
   const filtres = useMemo(() => {
     const q = normaliser(recherche.trim())
     return ANIMAUX.filter((a) => {
       if (categorie !== 'toutes' && a.categorie !== categorie) return false
       if (lieu !== 'tous' && !a.partout && !a.lieux.includes(lieu)) return false
-      const vu = obs(a.id).vu
-      if (filtreVu === 'vus' && !vu) return false
-      if (filtreVu === 'a_trouver' && vu) return false
+      const o = obs(a.id)
+      if (filtreVu === 'vus' && !o.vu) return false
+      if (filtreVu === 'a_trouver' && o.vu) return false
       if (q) {
-        const corpus = normaliser(
-          [a.nom, a.nomLatin, a.conseils, ...a.lieux, obs(a.id).note, obs(a.id).lieu].join(' '),
-        )
+        const corpus = normaliser([a.nom, a.nomLatin, a.conseils, ...a.lieux, o.note, o.lieu].join(' '))
         if (!corpus.includes(q)) return false
       }
       return true
     })
-  }, [recherche, categorie, lieu, filtreVu, observations])
+  }, [recherche, categorie, lieu, filtreVu, parAnimal])
 
-  const detailObs = detail ? obs(detail.id) : null
+  if (chargement) return <LoadingScreen />
 
   return (
     <PageTransition>
@@ -91,6 +125,12 @@ export default function PokedexPage(): ReactNode {
             </button>
           )}
         </div>
+
+        {erreur && (
+          <div className="mb-4">
+            <ErrorBanner message={erreur} onRetry={() => void recharger()} />
+          </div>
+        )}
 
         {/* Progression */}
         <div className="glass mb-5 p-4 sm:p-5">
@@ -199,7 +239,7 @@ export default function PokedexPage(): ReactNode {
                   className={`glass relative cursor-pointer p-4 transition-all hover:bg-white/[0.09] ${
                     o.vu ? 'border-glacier/40' : ''
                   }`}
-                  onClick={() => setDetail(animal)}
+                  onClick={() => ouvrirDetail(animal)}
                 >
                   <div className="flex items-start gap-3">
                     <span
@@ -255,8 +295,8 @@ export default function PokedexPage(): ReactNode {
       </div>
 
       {/* Fiche détail */}
-      <Modal ouvert={detail !== null} onFermer={() => setDetail(null)} titre={detail ? `${detail.emoji} ${detail.nom}` : ''}>
-        {detail && detailObs && (
+      <Modal ouvert={detail !== null} onFermer={fermerDetail} titre={detail ? `${detail.emoji} ${detail.nom}` : ''}>
+        {detail && draft && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-sm italic text-cream-dim">{detail.nomLatin}</span>
@@ -292,9 +332,9 @@ export default function PokedexPage(): ReactNode {
               <button
                 type="button"
                 onClick={() => basculerVu(detail)}
-                className={detailObs.vu ? 'btn-glacier w-full' : 'btn-primary w-full'}
+                className={draft.vu ? 'btn-glacier w-full' : 'btn-primary w-full'}
               >
-                {detailObs.vu ? (
+                {draft.vu ? (
                   <>
                     <X className="h-4 w-4" /> Marquer comme non vu
                   </>
@@ -305,7 +345,7 @@ export default function PokedexPage(): ReactNode {
                 )}
               </button>
 
-              {detailObs.vu && (
+              {draft.vu && (
                 <div className="mt-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -316,8 +356,9 @@ export default function PokedexPage(): ReactNode {
                         id="obs-date"
                         type="date"
                         className="input"
-                        value={detailObs.date ?? ''}
-                        onChange={(e) => patcher(detail.id, { date: e.target.value || null })}
+                        value={draft.date ?? ''}
+                        onChange={(e) => setDraft({ ...draft, date: e.target.value || null })}
+                        onBlur={() => sauverDraft()}
                       />
                     </div>
                     <div>
@@ -329,8 +370,9 @@ export default function PokedexPage(): ReactNode {
                         type="text"
                         className="input"
                         placeholder="Où l’as-tu vu ?"
-                        value={detailObs.lieu}
-                        onChange={(e) => patcher(detail.id, { lieu: e.target.value })}
+                        value={draft.lieu}
+                        onChange={(e) => setDraft({ ...draft, lieu: e.target.value })}
+                        onBlur={() => sauverDraft()}
                       />
                     </div>
                   </div>
@@ -342,10 +384,14 @@ export default function PokedexPage(): ReactNode {
                       id="obs-note"
                       className="input min-h-[5rem] resize-y"
                       placeholder="Un souvenir, une anecdote, le nombre d’individus…"
-                      value={detailObs.note}
-                      onChange={(e) => patcher(detail.id, { note: e.target.value })}
+                      value={draft.note}
+                      onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+                      onBlur={() => sauverDraft()}
                     />
                   </div>
+                  <p className="text-[10px] text-cream-dim/60">
+                    Synchronisé entre vous deux — l’autre voit tes trouvailles en direct.
+                  </p>
                 </div>
               )}
             </div>
@@ -356,11 +402,13 @@ export default function PokedexPage(): ReactNode {
       <ConfirmDialog
         ouvert={confirmReset}
         titre="Réinitialiser le pokédex ?"
-        message="Toutes les observations (coches, dates, notes) seront effacées sur cet appareil."
+        message="Toutes les observations (coches, dates, notes) seront effacées pour vous deux."
         labelConfirmer="Tout effacer"
         onConfirmer={() => {
-          setObservations({})
           setConfirmReset(false)
+          void executer(async () => {
+            await Promise.all(pokedex.map((o) => supprimerObservationPokedex(o.animal_id)))
+          }, 'Pokédex réinitialisé')
         }}
         onAnnuler={() => setConfirmReset(false)}
       />

@@ -4,6 +4,7 @@ import type {
   Etape,
   Note,
   Poi,
+  PokedexObservation,
   TableName,
   Tache,
 } from '../types/db'
@@ -16,6 +17,7 @@ interface LocalDb {
   notes: Note[]
   taches: Tache[]
   depenses: Depense[]
+  pokedex_observations: PokedexObservation[]
 }
 
 type RowOf = {
@@ -24,6 +26,7 @@ type RowOf = {
   notes: Note
   taches: Tache
   depenses: Depense
+  pokedex_observations: PokedexObservation
 }
 
 const listeners = new Set<(table: TableName) => void>()
@@ -31,7 +34,12 @@ const listeners = new Set<(table: TableName) => void>()
 function loadDb(): LocalDb {
   try {
     const raw = localStorage.getItem(LS_KEYS.localDb)
-    if (raw) return JSON.parse(raw) as LocalDb
+    if (raw) {
+      const db = JSON.parse(raw) as LocalDb
+      // Bases persistées avant l'ajout du pokédex : la clé peut manquer.
+      db.pokedex_observations ??= []
+      return db
+    }
   } catch {
     // stockage corrompu → on repart du seed
   }
@@ -41,6 +49,7 @@ function loadDb(): LocalDb {
     notes: SEED_NOTES,
     taches: SEED_TACHES,
     depenses: SEED_DEPENSES,
+    pokedex_observations: [],
   }
   persist(db)
   return db
@@ -140,6 +149,20 @@ export function createLocalRepo(): TripRepo {
     createDepense: (input) => create('depenses', { ...input, id: newId(), created_at: nowIso() }),
     updateDepense: (id, patch) => update('depenses', id, patch),
     deleteDepense: (id) => remove('depenses', id),
+
+    listPokedex: () => list('pokedex_observations'),
+    async upsertPokedex(input) {
+      let row: PokedexObservation | undefined
+      mutate('pokedex_observations', (rows) => {
+        const existante = rows.find((o) => o.animal_id === input.animal_id)
+        row = { created_at: existante?.created_at ?? nowIso(), ...existante, ...input }
+        return [...rows.filter((o) => o.animal_id !== input.animal_id), row]
+      })
+      return row as PokedexObservation
+    },
+    async deletePokedex(animalId) {
+      mutate('pokedex_observations', (rows) => rows.filter((o) => o.animal_id !== animalId))
+    },
 
     async setOrdres(table, ids) {
       const position = new Map(ids.map((id, i) => [id, i]))

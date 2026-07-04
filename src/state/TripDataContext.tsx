@@ -20,6 +20,8 @@ import type {
   NoteInput,
   Poi,
   PoiInput,
+  PokedexObservation,
+  PokedexObservationInput,
   TableName,
   Tache,
   TacheInput,
@@ -31,6 +33,7 @@ interface TripDataValue {
   notes: Note[]
   taches: Tache[]
   depenses: Depense[]
+  pokedex: PokedexObservation[]
   chargement: boolean
   erreur: string | null
   mode: 'supabase' | 'local'
@@ -58,6 +61,9 @@ interface TripDataValue {
   creerDepense: (input: DepenseInput) => Promise<void>
   modifierDepense: (id: string, patch: Partial<DepenseInput>) => Promise<void>
   supprimerDepense: (id: string) => Promise<void>
+
+  observerPokedex: (input: PokedexObservationInput) => Promise<void>
+  supprimerObservationPokedex: (animalId: string) => Promise<void>
 }
 
 const TripDataContext = createContext<TripDataValue | null>(null)
@@ -71,6 +77,7 @@ export function TripDataProvider({ children }: { children: ReactNode }): ReactNo
   const [notes, setNotes] = useState<Note[]>([])
   const [taches, setTaches] = useState<Tache[]>([])
   const [depenses, setDepenses] = useState<Depense[]>([])
+  const [pokedex, setPokedex] = useState<PokedexObservation[]>([])
   const [chargement, setChargement] = useState(true)
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -91,24 +98,29 @@ export function TripDataProvider({ children }: { children: ReactNode }): ReactNo
       case 'depenses':
         setDepenses(await repo.listDepenses())
         break
+      case 'pokedex_observations':
+        setPokedex(await repo.listPokedex())
+        break
     }
   }, [])
 
   const recharger = useCallback(async (): Promise<void> => {
     setErreur(null)
     try {
-      const [e, p, n, t, d] = await Promise.all([
+      const [e, p, n, t, d, o] = await Promise.all([
         repo.listEtapes(),
         repo.listPois(),
         repo.listNotes(),
         repo.listTaches(),
         repo.listDepenses(),
+        repo.listPokedex(),
       ])
       setEtapes(parOrdre(e))
       setPois(parOrdre(p))
       setNotes(n)
       setTaches(parOrdre(t))
       setDepenses(d)
+      setPokedex(o)
     } catch (err) {
       setErreur(err instanceof Error ? err.message : 'Erreur de chargement des données')
     } finally {
@@ -151,6 +163,7 @@ export function TripDataProvider({ children }: { children: ReactNode }): ReactNo
       notes,
       taches,
       depenses,
+      pokedex,
       chargement,
       erreur,
       mode: repo.mode,
@@ -250,8 +263,17 @@ export function TripDataProvider({ children }: { children: ReactNode }): ReactNo
         await repo.deleteDepense(id)
         setDepenses((prev) => prev.filter((d) => d.id !== id))
       },
+
+      observerPokedex: async (input) => {
+        const row = await repo.upsertPokedex(input)
+        setPokedex((prev) => [...prev.filter((o) => o.animal_id !== row.animal_id), row])
+      },
+      supprimerObservationPokedex: async (animalId) => {
+        await repo.deletePokedex(animalId)
+        setPokedex((prev) => prev.filter((o) => o.animal_id !== animalId))
+      },
     }),
-    [etapes, pois, notes, taches, depenses, chargement, erreur, recharger],
+    [etapes, pois, notes, taches, depenses, pokedex, chargement, erreur, recharger],
   )
 
   return <TripDataContext.Provider value={value}>{children}</TripDataContext.Provider>

@@ -318,3 +318,39 @@ create policy depenses_write on public.depenses
       where p.id = auth.uid() and p.role = 'admin'
     )
   );
+
+-- ============================================================
+-- MIGRATION POKÉDEX — observations faune partagées
+-- (déjà appliquée via MCP le 2026-07-04 ; conservée ici pour référence)
+-- ============================================================
+
+-- Une ligne par espèce (animal_id = id du catalogue statique
+-- src/lib/pokedexData.ts). Partagée entre les deux voyageurs.
+
+create table if not exists public.pokedex_observations (
+  animal_id  text primary key,
+  vu         boolean not null default true,
+  date       date,
+  lieu       text not null default '',
+  note       text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.pokedex_observations enable row level security;
+
+-- Contrairement aux autres tables (écriture admin), les DEUX voyageurs
+-- cochent leurs observations : écriture pour tout utilisateur authentifié.
+drop policy if exists pokedex_select on public.pokedex_observations;
+create policy pokedex_select on public.pokedex_observations
+  for select using (auth.role() = 'authenticated');
+
+drop policy if exists pokedex_write on public.pokedex_observations;
+create policy pokedex_write on public.pokedex_observations
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+do $$
+begin
+  alter publication supabase_realtime add table public.pokedex_observations;
+exception when duplicate_object then null;
+end $$;

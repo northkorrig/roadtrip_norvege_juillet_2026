@@ -7,6 +7,7 @@ import type {
   NoteInput,
   Poi,
   PoiInput,
+  PokedexObservation,
   TableName,
   Tache,
   TacheInput,
@@ -14,7 +15,7 @@ import type {
 import { getSupabase } from './supabaseClient'
 import type { TripRepo } from './repo'
 
-const TABLES: TableName[] = ['etapes', 'pois', 'notes', 'taches', 'depenses']
+const TABLES: TableName[] = ['etapes', 'pois', 'notes', 'taches', 'depenses', 'pokedex_observations']
 
 function fail(operation: string, table: string, message: string): never {
   throw new Error(`Supabase — ${operation} ${table} : ${message}`)
@@ -78,6 +79,21 @@ export function createSupabaseRepo(): TripRepo {
     createDepense: (input: DepenseInput) => insertOne<Depense>('depenses', input),
     updateDepense: (id, patch) => updateOne<Depense>('depenses', id, patch),
     deleteDepense: (id) => deleteOne('depenses', id),
+
+    listPokedex: () => listAll<PokedexObservation>('pokedex_observations', 'animal_id'),
+    async upsertPokedex(input) {
+      const { data, error } = await getSupabase()
+        .from('pokedex_observations')
+        .upsert(input, { onConflict: 'animal_id' })
+        .select()
+        .single()
+      if (error) fail('observation', 'pokedex_observations', error.message)
+      return data as PokedexObservation
+    },
+    async deletePokedex(animalId) {
+      const { error } = await getSupabase().from('pokedex_observations').delete().eq('animal_id', animalId)
+      if (error) fail('suppression', 'pokedex_observations', error.message)
+    },
 
     async setOrdres(table, ids) {
       const results = await Promise.all(

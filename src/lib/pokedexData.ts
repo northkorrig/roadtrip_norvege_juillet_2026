@@ -1,6 +1,7 @@
 // Pokédex faune norvégienne — catalogue statique des espèces observables
 // le long de l'itinéraire (sud de la Norvège, juillet). Les observations
-// (vu / date / note) sont persistées en localStorage, voir PokedexPage.
+// (vu / date / note) vivent dans la table pokedex_observations, partagée
+// entre les voyageurs et synchronisée en temps réel (voir types/db.ts).
 
 export type AnimalCategorie = 'mammifere' | 'oiseau' | 'aquatique'
 
@@ -20,16 +21,6 @@ export interface Animal {
   /** Où / quand / comment maximiser ses chances. */
   conseils: string
 }
-
-/** Observation d'une espèce, persistée en localStorage (clé = Animal.id). */
-export interface Observation {
-  vu: boolean
-  date: string | null
-  lieu: string
-  note: string
-}
-
-export const OBSERVATION_VIDE: Observation = { vu: false, date: null, lieu: '', note: '' }
 
 /** Zones de l'itinéraire, dans l'ordre du voyage — utilisées pour le filtre lieu. */
 export const POKEDEX_LIEUX = [
