@@ -64,6 +64,17 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Photos Wikipédia du pokédex : une fois chargées, elles restent
+            // disponibles hors-ligne (fjords sans réseau)
+            urlPattern: ({ url }) => url.hostname === 'upload.wikimedia.org',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wikipedia-images',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       devOptions: { enabled: false },

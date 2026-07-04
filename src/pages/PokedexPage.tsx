@@ -1,4 +1,4 @@
-import { Check, MapPin, PawPrint, RotateCcw, Search, X } from 'lucide-react'
+import { Check, ExternalLink, MapPin, PawPrint, RotateCcw, Search, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import {
   ConfirmDialog,
@@ -17,10 +17,14 @@ import {
   type Animal,
   type AnimalCategorie,
 } from '../lib/pokedexData'
+import { urlWikipedia, useFichesWiki } from '../lib/wikipedia'
 import { useTripData } from '../state/TripDataContext'
 import type { PokedexObservation, PokedexObservationInput } from '../types/db'
 
 type FiltreVu = 'tous' | 'vus' | 'a_trouver'
+
+// Les noms latins redirigent vers l'article français sur fr.wikipedia.org
+const TITRES_WIKI = ANIMAUX.map((a) => a.nomLatin)
 
 const aujourdhui = (): string => new Date().toISOString().split('T')[0]
 
@@ -37,6 +41,7 @@ export default function PokedexPage(): ReactNode {
   const { pokedex, chargement, erreur, recharger, observerPokedex, supprimerObservationPokedex } =
     useTripData()
   const executer = useAction()
+  const fiches = useFichesWiki(TITRES_WIKI)
 
   const [recherche, setRecherche] = useState('')
   const [categorie, setCategorie] = useState<AnimalCategorie | 'toutes'>('toutes')
@@ -233,6 +238,7 @@ export default function PokedexPage(): ReactNode {
             {filtres.map((animal) => {
               const o = obs(animal.id)
               const rarete = ANIMAL_RARETES[animal.rarete]
+              const photo = fiches[animal.nomLatin]?.image
               return (
                 <article
                   key={animal.id}
@@ -243,12 +249,22 @@ export default function PokedexPage(): ReactNode {
                 >
                   <div className="flex items-start gap-3">
                     <span
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
+                      className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-2xl ${
                         o.vu ? 'bg-glacier/15' : 'bg-white/[0.06] grayscale'
                       }`}
                       aria-hidden
                     >
                       {animal.emoji}
+                      {photo && (
+                        <img
+                          src={photo}
+                          alt=""
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover"
+                          // image indisponible (hors-ligne, lien mort) → on retombe sur l'emoji
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      )}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h2 className="truncate font-display text-base font-semibold leading-snug">
@@ -306,7 +322,25 @@ export default function PokedexPage(): ReactNode {
               <span className="chip bg-white/[0.07] px-2 py-0.5 text-[10px] text-cream-dim">
                 {ANIMAL_CATEGORIES[detail.categorie].emoji} {ANIMAL_CATEGORIES[detail.categorie].label}
               </span>
+              <a
+                href={fiches[detail.nomLatin]?.url ?? urlWikipedia(detail.nomLatin)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="chip bg-white/[0.07] px-2 py-0.5 text-[10px] text-cream-dim hover:bg-glacier/15 hover:text-glacier"
+              >
+                <ExternalLink className="h-2.5 w-2.5" /> Wikipédia
+              </a>
             </div>
+
+            {fiches[detail.nomLatin]?.image && (
+              <img
+                src={fiches[detail.nomLatin]?.image ?? undefined}
+                alt={detail.nom}
+                className="max-h-52 w-full rounded-xl object-cover"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            )}
 
             <div>
               <p className="label">Où le trouver</p>
