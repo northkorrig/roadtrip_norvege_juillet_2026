@@ -80,13 +80,19 @@ export default function HomePage(): ReactNode {
   const relancerVol = (): void => {
     if (!map || stops.length < 2) return
     cancelVol.current?.()
+    // Vue satellite pendant le vol : le style nuit du fond de carte est quasi
+    // noir à ces zooms — en hybrid, on survole réellement les fjords.
+    map.setMapTypeId('hybrid')
     setEnVol(true)
-    cancelVol.current = flyOver(map, stops, () => setEnVol(false))
+    cancelVol.current = flyOver(map, stops, () => {
+      map.setMapTypeId('roadmap')
+      setEnVol(false)
+    })
   }
 
   const arreterVol = (): void => {
+    // flyOver garantit l'appel de onDone à l'annulation : il restaure carte + habillage
     cancelVol.current?.()
-    setEnVol(false)
   }
 
   const kmTotal = etapes.reduce((s, e) => s + (e.km_depuis_precedent ?? 0), 0)
