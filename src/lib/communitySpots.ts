@@ -43,6 +43,8 @@ export async function chercherLieuxRemarquables(
       website: s.website,
       description: s.description,
       distanceKm: haversineKm(lat, lng, s.lat, s.lng),
+      // Coordonnée d'article Wikipédia : pointe le sujet, pas toujours le spot exact
+      approx: true,
     }))
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err

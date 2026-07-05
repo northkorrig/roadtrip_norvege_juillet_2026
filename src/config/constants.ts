@@ -103,6 +103,7 @@ export const LS_KEYS = {
   reservations: 'reservations',
   localDb: 'nrt_local_db_v1',
   wikiCache: 'pokedex_wiki_v1',
+  selectionSnap: 'bivouac_selection_snap_v1',
   routeCache: 'nrt_route_cache_v1',
 } as const
 

@@ -5,6 +5,7 @@ import {
   Eye,
   Flame,
   Home,
+  MapPin,
   Mountain,
   Navigation,
   Plus,
@@ -27,14 +28,16 @@ import { etapeIcon, fitToPoints } from '../components/map/mapLayers'
 import type { PoiPrefill } from '../components/pois/PoiForm'
 import { PageTransition, Spinner } from '../components/ui'
 import { useGeolocation } from '../hooks/useGeolocation'
-import { lienStreetView } from '../lib/googleMaps'
+import { lienGoogleMaps, lienStreetView } from '../lib/googleMaps'
 import { chercherLieuxRemarquables } from '../lib/communitySpots'
+import { chercherSelection } from '../lib/curatedSpots'
 import { chercherBivouacs, haversineKm, type SousTypeBivouac, type SpotBivouac } from '../lib/overpass'
 import { chercherNotesGoogle, lienAvisGoogle, type NoteGoogle } from '../lib/placesRatings'
 import { useTripData } from '../state/TripDataContext'
 import type { LatLng } from '../types/db'
 
 const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon: LucideIcon }> = {
+  selection: { label: 'Sélection connaisseurs', couleur: '#FFC94D', Icon: Star },
   remarquable: { label: 'Lieu remarquable', couleur: '#E8C45A', Icon: Sparkles },
   viewpoint: { label: 'Point de vue', couleur: '#9B8CFF', Icon: Telescope },
   beach: { label: 'Plage / baignade', couleur: '#6FB8FF', Icon: Waves },
@@ -85,10 +88,18 @@ function NoteEtoiles({ note }: { note: NoteGoogle }): ReactNode {
 }
 
 function BadgesSpot({ spot }: { spot: SpotBivouac }): ReactNode {
-  if (!spot.dnt && !spot.eau && !spot.feu && !spot.toilettes) return null
+  if (!spot.dnt && !spot.eau && !spot.feu && !spot.toilettes && !spot.approx) return null
   const badge = 'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium'
   return (
     <span className="mt-1 flex flex-wrap items-center gap-1">
+      {spot.approx && (
+        <span
+          className={`${badge} bg-white/10 text-cream-dim/80`}
+          title="Coordonnée indicative — ouvre la carte ou Street View pour repérer le lieu exact"
+        >
+          ≈ position approx.
+        </span>
+      )}
       {spot.dnt && (
         <span className={`${badge} bg-ember/20 text-ember`} title="Réseau DNT (club alpin norvégien)">DNT</span>
       )}
@@ -119,8 +130,12 @@ export default function BivouacsPage(): ReactNode {
     etapesAvecCoords.length > 0 ? etapesAvecCoords[0].id : POSITION,
   )
   const [rayon, setRayon] = useState<number>(20)
+  // Refuges d'altitude (gardés/non gardés) et simples abris désactivés par
+  // défaut : ils noyaient les résultats alors qu'on cherche des spots van/tente.
+  // Réactivables d'un tap sur leur chip.
   const [filtres, setFiltres] = useState<Set<SousTypeBivouac>>(
     new Set<SousTypeBivouac>([
+      'selection',
       'remarquable',
       'viewpoint',
       'beach',
@@ -129,9 +144,6 @@ export default function BivouacsPage(): ReactNode {
       'caravan_site',
       'rest_area',
       'gapahuk',
-      'shelter',
-      'wilderness_hut',
-      'alpine_hut',
     ]),
   )
   const [inclureSansNom, setInclureSansNom] = useState(false)
@@ -171,15 +183,30 @@ export default function BivouacsPage(): ReactNode {
     setNotes({})
 
     try {
-      // OSM (campings, refuges, spots nature) + lieux remarquables communautaires
-      // (/api/spots) en parallèle ; ce dernier renvoie [] s'il est indisponible.
-      const [bivouacs, remarquables] = await Promise.all([
+      // Trois sources en parallèle : OSM (campings, spots nature), lieux
+      // remarquables communautaires (/api/spots) et sélection éditoriale
+      // embarquée. allSettled : si une source tombe (Overpass saturé, réseau
+      // de montagne), on affiche quand même les résultats des autres.
+      const [rOsm, rRem, rSel] = await Promise.allSettled([
         chercherBivouacs(lat, lng, rayonKm, ctrl.signal),
         chercherLieuxRemarquables(lat, lng, rayonKm, ctrl.signal),
+        chercherSelection(lat, lng, rayonKm),
       ])
       if (ctrl.signal.aborted) return
-      const resultats = [...bivouacs, ...remarquables].sort((a, b) => a.distanceKm - b.distanceKm)
+      const bivouacs = rOsm.status === 'fulfilled' ? rOsm.value : []
+      const remarquables = rRem.status === 'fulfilled' ? rRem.value : []
+      const selection = rSel.status === 'fulfilled' ? rSel.value : []
+      const resultats = [...selection, ...bivouacs, ...remarquables].sort(
+        (a, b) => a.distanceKm - b.distanceKm,
+      )
+      if (rOsm.status === 'rejected' && resultats.length === 0) {
+        const raison = rOsm.reason
+        throw raison instanceof Error ? raison : new Error(String(raison))
+      }
       setSpots(resultats)
+      if (rOsm.status === 'rejected') {
+        setErreur('Source OpenStreetMap indisponible — résultats partiels (sélection et lieux remarquables seulement).')
+      }
       setNotesChargement(true)
       void chercherNotesGoogle(lat, lng, rayonKm, resultats)
         .then((n) => { if (!ctrl.signal.aborted) setNotes(n) })
@@ -471,12 +498,22 @@ export default function BivouacsPage(): ReactNode {
                         </p>
                         <BadgesSpot spot={spot} />
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <a
+                          href={lienGoogleMaps(spot.lat, spot.lng)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-ghost min-h-0 p-1.5"
+                          title="Ouvrir dans Google Maps (vérifier le lieu en satellite)"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </a>
                         <a
                           href={lienStreetView(spot.lat, spot.lng)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-ghost p-1.5"
+                          className="btn-ghost min-h-0 p-1.5"
                           title="Voir sur Street View"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -513,7 +550,7 @@ export default function BivouacsPage(): ReactNode {
                   <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">
                     © contributeurs OpenStreetMap
                   </a>
-                  {' · lieux remarquables : Wikipédia · avis : Google Maps'}
+                  {' · lieux remarquables : Wikipédia · avis : Google Maps · sélection : guides van-life & Nasjonale turistveger'}
                 </p>
               )}
             </div>
@@ -563,6 +600,15 @@ export default function BivouacsPage(): ReactNode {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <a
+                    href={lienGoogleMaps(spotSel.lat, spotSel.lng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ghost p-1.5"
+                    title="Ouvrir dans Google Maps (vérifier le lieu en satellite)"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                  </a>
                   <a
                     href={lienStreetView(spotSel.lat, spotSel.lng)}
                     target="_blank"

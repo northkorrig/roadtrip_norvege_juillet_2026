@@ -11,6 +11,8 @@ export type SousTypeBivouac =
   | 'rest_area'
   /** Lieu remarquable documenté par la communauté (Wikipédia), via /api/spots. */
   | 'remarquable'
+  /** Spot de nuit réputé, sélection éditoriale embarquée (voir curatedSpots.ts). */
+  | 'selection'
 
 export interface SpotBivouac {
   osmId: string
@@ -30,6 +32,8 @@ export interface SpotBivouac {
   website: string | null
   description: string | null
   distanceKm: number
+  /** Position à vérifier (coordonnée d'article Wikipédia ou repère non recalé). */
+  approx?: boolean
 }
 
 interface OverpassElement {
