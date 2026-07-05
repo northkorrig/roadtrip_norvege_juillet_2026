@@ -200,21 +200,24 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
   let timer = 0
   let annule = false
 
-  const cancel = (): void => {
+  // `onDone` est garanti d'être appelé exactement une fois, y compris quand le
+  // vol est annulé (drag utilisateur, bouton stop, démontage) : les appelants
+  // s'en servent pour restaurer l'état de la carte (type de fond, habillage).
+  const terminer = (): void => {
     if (annule) return
     annule = true
     window.clearTimeout(timer)
     listener.remove()
+    onDone?.()
   }
 
-  const listener = map.addListener('dragstart', cancel)
+  const listener = map.addListener('dragstart', terminer)
 
   const step = (): void => {
     if (annule) return
     if (i >= stops.length) {
-      cancel()
       fitToPoints(map, stops, 72)
-      onDone?.()
+      terminer()
       return
     }
     map.panTo(stops[i])
@@ -226,5 +229,5 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
   map.panTo(stops[0])
   map.setZoom(7)
   timer = window.setTimeout(step, 900)
-  return cancel
+  return terminer
 }
