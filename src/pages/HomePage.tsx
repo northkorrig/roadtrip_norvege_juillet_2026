@@ -31,6 +31,9 @@ export default function HomePage(): ReactNode {
   const [path, setPath] = useState<LatLng[] | null>(null)
   const cancelVol = useRef<(() => void) | null>(null)
   const [volEffectue, setVolEffectue] = useState(false)
+  // Survol manuel : on efface l'habillage pour voir la carte (sur mobile le
+  // voile la couvre entièrement — le vol était invisible).
+  const [enVol, setEnVol] = useState(false)
 
   const stops = useMemo<LatLng[]>(
     () =>
@@ -77,7 +80,13 @@ export default function HomePage(): ReactNode {
   const relancerVol = (): void => {
     if (!map || stops.length < 2) return
     cancelVol.current?.()
-    cancelVol.current = flyOver(map, stops)
+    setEnVol(true)
+    cancelVol.current = flyOver(map, stops, () => setEnVol(false))
+  }
+
+  const arreterVol = (): void => {
+    cancelVol.current?.()
+    setEnVol(false)
   }
 
   const kmTotal = etapes.reduce((s, e) => s + (e.km_depuis_precedent ?? 0), 0)
@@ -93,15 +102,34 @@ export default function HomePage(): ReactNode {
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <MapCanvas className="absolute inset-0" fallbackMessage={false} onReady={onMapReady} />
 
-      {/* Voiles de lisibilité — la carte reste visible et interactive à droite */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-night via-night/70 to-transparent md:via-night/40" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-night/90 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-night/80 to-transparent" />
+      {/* Voiles de lisibilité — effacés pendant le survol pour dégager la carte */}
+      <div
+        className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${enVol ? 'opacity-0' : 'opacity-100'}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-night via-night/70 to-transparent md:via-night/40" />
+        <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-night/90 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-night/80 to-transparent" />
+      </div>
 
-      <div className="pointer-events-none absolute inset-0 flex items-center">
+      {/* Bouton pour couper le survol et retrouver l'écran d'accueil */}
+      {enVol && (
+        <button
+          type="button"
+          onClick={arreterVol}
+          className="glass absolute bottom-28 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap px-4 py-2.5 text-sm font-semibold text-cream md:bottom-10"
+        >
+          ✕ Arrêter le survol
+        </button>
+      )}
+
+      <div
+        className={`pointer-events-none absolute inset-0 flex items-center transition-opacity duration-700 ${
+          enVol ? 'opacity-0' : 'opacity-100'
+        }`}
+      >
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <motion.div
-            className="pointer-events-auto max-w-2xl pb-20 pt-20 md:pb-0"
+            className={`${enVol ? 'pointer-events-none' : 'pointer-events-auto'} max-w-2xl pb-20 pt-20 md:pb-0`}
             variants={conteneur}
             initial="hidden"
             animate="visible"
@@ -130,17 +158,28 @@ export default function HomePage(): ReactNode {
                 <AujourdHui jour={jour} />
               </motion.div>
             ) : (
-              <motion.div variants={element} className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                {compteurs.map((c) => (
-                  <div key={c.label} className="glass px-4 py-3">
-                    <p className="font-display text-2xl font-bold text-cream sm:text-3xl">
-                      <CountUp valeur={c.valeur} />
-                      <span className="text-glacier">{c.suffixe}</span>
-                    </p>
-                    <p className="text-[11px] uppercase tracking-wider text-cream-dim">{c.label}</p>
-                  </div>
-                ))}
-              </motion.div>
+              <>
+                <motion.div variants={element} className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  {compteurs.map((c) => (
+                    <div key={c.label} className="glass px-4 py-3">
+                      <p className="font-display text-2xl font-bold text-cream sm:text-3xl">
+                        <CountUp valeur={c.valeur} />
+                        <span className="text-glacier">{c.suffixe}</span>
+                      </p>
+                      <p className="text-[11px] uppercase tracking-wider text-cream-dim">{c.label}</p>
+                    </div>
+                  ))}
+                </motion.div>
+                <motion.div variants={element} className="mt-3">
+                  <Link
+                    to={`/?jour=${TRIP_META.debut}`}
+                    className="chip bg-glacier/10 text-glacier transition-colors hover:bg-glacier/20"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Nouveau : le mode « Aujourd’hui » s’activera ici le 14 juillet — prévisualiser
+                  </Link>
+                </motion.div>
+              </>
             )}
 
             <motion.div variants={element} className="mt-7 flex flex-wrap items-center gap-3">

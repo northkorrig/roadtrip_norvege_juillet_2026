@@ -669,6 +669,9 @@ export default function BivouacsPage(): ReactNode {
                 <Tent className="mx-auto mb-2 h-8 w-8 text-glacier/60" />
                 <p className="text-sm font-medium text-cream-dim">Sélectionne une étape et lance la recherche</p>
                 <p className="mt-0.5 text-xs text-cream-dim/60">Ou déplace la carte puis clique "Rechercher dans cette zone"</p>
+                <p className="mt-2 text-xs text-glacier/80">
+                  Nouveau : ⭐ sélection connaisseurs · 🛸 spots drone · ♻️ vidange van · ⛽ carburant
+                </p>
               </div>
             </div>
           )}
