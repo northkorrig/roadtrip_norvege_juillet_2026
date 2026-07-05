@@ -202,6 +202,7 @@ function easeInOut(t: number): number {
 export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => void): () => void {
   if (stops.length === 0) return () => undefined
   let raf = 0
+  let secours = 0
   let annule = false
 
   // `onDone` est garanti d'être appelé exactement une fois, y compris quand le
@@ -211,28 +212,33 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
     if (annule) return
     annule = true
     cancelAnimationFrame(raf)
+    window.clearTimeout(secours)
+    premieresTuiles.remove()
     listener.remove()
     onDone?.()
   }
 
   const listener = map.addListener('dragstart', terminer)
 
-  // Vol CONTINU (interpolation à chaque frame) plutôt que des panTo d'étape en
-  // étape : des sauts de ~100 km vident tout le viewport et laissent un écran
-  // noir le temps du rechargement des tuiles, surtout sur réseau mobile. En
-  // glissant, les tuiles voisines se chargent au fil de l'eau.
-  const MS_PAR_KM = 24
+  // Vol CONTINU (interpolation) plutôt que des panTo d'étape en étape : des
+  // sauts de ~100 km vident tout le viewport et laissent un écran noir le
+  // temps du rechargement des tuiles. Vitesse volontairement modérée et
+  // recentrage espacé (~12 fps) : à chaque déplacement, Google relance des
+  // chargements de tuiles — trop vite/trop souvent, elles n'arrivent jamais.
+  const MS_PAR_KM = 32
+  const PAS_MIN_MS = 80
   const segments = stops.slice(1).map((fin, i) => {
     const debut = stops[i]
     const km = haversineKm(debut.lat, debut.lng, fin.lat, fin.lng)
-    return { debut, fin, duree: Math.min(3600, Math.max(900, km * MS_PAR_KM)) }
+    return { debut, fin, duree: Math.min(4200, Math.max(1000, km * MS_PAR_KM)) }
   })
   const dureeTotale = segments.reduce((s, seg) => s + seg.duree, 0)
 
   map.setCenter(stops[0])
   map.setZoom(7)
 
-  const t0 = performance.now() + 900 // laisse la première vue se charger
+  let t0 = 0
+  let dernierPas = 0
   const tick = (now: number): void => {
     if (annule) return
     let t = now - t0
@@ -241,7 +247,8 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
       terminer()
       return
     }
-    if (t >= 0) {
+    if (t >= 0 && now - dernierPas >= PAS_MIN_MS) {
+      dernierPas = now
       let seg = segments[0]
       for (const s of segments) {
         if (t < s.duree) {
@@ -258,6 +265,19 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
     }
     raf = requestAnimationFrame(tick)
   }
-  raf = requestAnimationFrame(tick)
+
+  // Décollage seulement une fois la première vue affichée (tilesloaded), avec
+  // un plan B à 3 s — sinon on part sur un fond vide.
+  let lance = false
+  const decoller = (): void => {
+    if (lance || annule) return
+    lance = true
+    window.clearTimeout(secours)
+    t0 = performance.now() + 500
+    raf = requestAnimationFrame(tick)
+  }
+  const premieresTuiles = google.maps.event.addListenerOnce(map, 'tilesloaded', decoller)
+  secours = window.setTimeout(decoller, 3000)
+
   return terminer
 }

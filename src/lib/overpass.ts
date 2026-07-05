@@ -104,10 +104,16 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.private.coffee/api/interpreter',
 ] as const
 
-/** Délai max par miroir : un fetch navigateur sans timeout peut rester suspendu
- *  plusieurs minutes si le serveur accepte la connexion sans jamais répondre —
- *  c'est ce qui figeait la recherche avec un spinner infini. */
-const OVERPASS_TIMEOUT_MS = 20_000
+/** Délai serveur demandé à Overpass (l'API coupe elle-même la requête au-delà
+ *  et répond proprement). DOIT rester inférieur au délai client ci-dessous,
+ *  sinon on tue des requêtes lourdes qui allaient aboutir. */
+const OVERPASS_TIMEOUT_SERVEUR_S = 25
+
+/** Délai max côté client par miroir : un fetch navigateur sans timeout peut
+ *  rester suspendu plusieurs minutes si le serveur accepte la connexion sans
+ *  jamais répondre — c'est ce qui figeait la recherche avec un spinner infini.
+ *  Marge de 5 s au-delà du délai serveur (réseau + file d'attente). */
+const OVERPASS_TIMEOUT_MS = (OVERPASS_TIMEOUT_SERVEUR_S + 5) * 1000
 
 /**
  * Combine un signal d'annulation externe avec un timeout : la requête est
@@ -166,7 +172,7 @@ export async function chercherBivouacs(
   // remarquables" repérés par la communauté OSM — points de vue, plages,
   // aires de pique-nique et foyers de bivouac.
   const q =
-    `[out:json][timeout:45];` +
+    `[out:json][timeout:${OVERPASS_TIMEOUT_SERVEUR_S}];` +
     `(` +
     `node["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site|viewpoint)$"]${a};` +
     `way["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site)$"]${a};` +
