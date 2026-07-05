@@ -214,93 +214,6 @@ const SELECTION: SelectionDef[] = [
   },
 ]
 
-// Spots de prise de vue drone le long de l'itinéraire — UNIQUEMENT hors parcs
-// nationaux et réserves (drone interdit dans le Jotunheimen — dont Besseggen
-// et Gjende —, la Hardangervidda et le Folgefonna). Rappels : enregistrement
-// sur flydrone.no, 150 m des personnes/habitations, vérifier les zones sur la
-// carte Luftfartstilsynet avant chaque vol.
-const DRONE: SelectionDef[] = [
-  {
-    id: 'drone_gaustatoppen',
-    nom: 'Gaustatoppen — panorama',
-    requete: 'Gaustatoppen',
-    lat: 59.8542,
-    lng: 8.6482,
-    description:
-      'Le sommet qui voit 1/6 de la Norvège par temps clair — crête et mer de nuages spectaculaires vues du ciel. Hors parc national. Sommet fréquenté : décoller à l’écart (150 m des personnes), idéalement tôt le matin.',
-    website: null,
-  },
-  {
-    id: 'drone_voringsfossen',
-    nom: 'Vøringsfossen — la gorge',
-    requete: 'Vøringsfossen',
-    lat: 60.4108,
-    lng: 7.21,
-    description:
-      'La chute de 182 m et le canyon de Måbødalen : le plan drone le plus dramatique du voyage. Très fréquenté en journée → voler tôt. Rafales dans la gorge, et vérifier la carte flydrone.no (limites de zones protégées proches).',
-    website: null,
-  },
-  {
-    id: 'drone_lofthus',
-    nom: 'Lofthus — vergers & Sørfjorden',
-    requete: 'Lofthus Ullensvang',
-    lat: 60.3333,
-    lng: 6.65,
-    description:
-      'Les vergers de cerisiers suspendus entre fjord et glacier Folgefonna. Voler au-dessus de l’eau, à 150 m des maisons et hors des vergers privés. Ne pas approcher le plateau du Folgefonna (parc national : drone interdit).',
-    website: null,
-  },
-  {
-    id: 'drone_latefossen',
-    nom: 'Låtefossen — double cascade',
-    requete: 'Låtefossen',
-    lat: 59.9489,
-    lng: 6.5858,
-    description:
-      'La double cascade de 165 m qui fusionne sous le pont de la Rv13 — un classique absolu du drone en Norvège. Attention à la circulation, aux embruns (protéger la nacelle) et aux autres pilotes en été.',
-    website: null,
-  },
-  {
-    id: 'drone_aurlandsfjellet',
-    nom: 'Aurlandsfjellet — Route des neiges',
-    requete: 'Flotane rasteplass Aurlandsfjellet',
-    lat: 60.966,
-    lng: 7.241,
-    description:
-      'Le ruban d’asphalte entre névés et lacs noirs à 1 100 m : décor lunaire parfait vu du ciel, désert au petit matin. Hors zones protégées — contrairement au Nærøyfjord voisin, à ne pas survoler.',
-    website: null,
-  },
-  {
-    id: 'drone_stegastein',
-    nom: 'Stegastein — Aurlandsfjord',
-    requete: 'Stegastein',
-    lat: 60.8667,
-    lng: 7.15,
-    description:
-      'La passerelle à 650 m au-dessus de l’Aurlandsfjord — contre-plongée mythique. Très fréquenté : créneau tôt le matin pour tenir les 150 m. Ne pas poursuivre vers le Nærøyfjord (zone paysagère protégée).',
-    website: null,
-  },
-  {
-    id: 'drone_sognefjell',
-    nom: 'Col du Sognefjell (Rv55)',
-    requete: 'Sognefjellshytta',
-    lat: 61.5667,
-    lng: 8.2667,
-    description:
-      'Glaciers du Smørstabbreen, lacs turquoise et névés à 1 400 m. Le corridor de la Rv55 est hors du parc — ne pas franchir la limite du Jotunheimen côté sud-est (drone interdit dans le parc).',
-    website: null,
-  },
-  {
-    id: 'drone_valdresflye',
-    nom: 'Valdresflye — côté est de la Rv51',
-    requete: 'Flye 1389 Valdresflye',
-    lat: 61.362,
-    lng: 8.806,
-    description:
-      '⚠️ Voler côté EST de la route uniquement : côté ouest (Jotunheimen — Gjende, Besseggen) le drone est interdit. Côté est : plateau minéral infini, lacs et rennes au petit matin — images de fin du monde garanties.',
-    website: null,
-  },
-]
 
 /** Recalages Google Places mis en cache : id → position exacte (ou null si introuvable). */
 type SnapCache = Record<string, { lat: number; lng: number; placeId: string } | null>
@@ -350,7 +263,7 @@ function snapUnSpot(def: SelectionDef): Promise<SnapCache[string]> {
 
 async function chercherListe(
   defs: SelectionDef[],
-  sousType: 'selection' | 'drone',
+  sousType: 'selection',
   lat: number,
   lng: number,
   rayonKm: number,
@@ -404,14 +317,10 @@ async function chercherListe(
  * Places la première fois (puis cache localStorage) pour que le point tombe
  * pile sur le lieu ; `approx` reste vrai tant que le recalage n'a pas abouti.
  */
-export async function chercherSpotsEdito(
+export async function chercherSelection(
   lat: number,
   lng: number,
   rayonKm: number,
 ): Promise<SpotBivouac[]> {
-  const [selection, drone] = await Promise.all([
-    chercherListe(SELECTION, 'selection', lat, lng, rayonKm),
-    chercherListe(DRONE, 'drone', lat, lng, rayonKm),
-  ])
-  return [...selection, ...drone]
+  return chercherListe(SELECTION, 'selection', lat, lng, rayonKm)
 }

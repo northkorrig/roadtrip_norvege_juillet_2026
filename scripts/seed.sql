@@ -41,7 +41,7 @@ insert into public.etapes (id, nom, date, ordre, lat, lng, km_depuis_precedent, 
  E'- Restitution du van Arctic Campers (navette gratuite, entrée 7 Gardermoen)\n- Temps libre à Oslo selon l’heure\n- Vol retour 18h30 → CDG', '2026-06-01T00:00:00Z');
 
 -- ------------------------------------------------------------
--- POIs (26 points avec coordonnées GPS)
+-- POIs (26 points + 9 spots drone, avec coordonnées GPS)
 -- ------------------------------------------------------------
 
 insert into public.pois (id, nom, categorie, lat, lng, note, ordre, jour, etape_id, created_at) values
@@ -71,6 +71,18 @@ insert into public.pois (id, nom, categorie, lat, lng, note, ordre, jour, etape_
 ('00000000-0000-4000-b000-000000000024', 'Gjendesheim', 'village', 61.4833, 8.85, 'Embarcadère du lac Gjende, parking pour 2 nuits.', 23, '2026-07-23', '00000000-0000-4000-a000-000000000010', '2026-06-01T00:00:00Z'),
 ('00000000-0000-4000-b000-000000000025', 'Besseggen Ridge', 'randonnee', 61.5, 8.9167, E'★★★ L’arête mythique : 15 km, +800 m, 6-7 h. ⚠️ RÉSERVER le bateau sur [gjende.no](https://gjende.no).', 24, '2026-07-24', '00000000-0000-4000-a000-000000000011', '2026-06-01T00:00:00Z'),
 ('00000000-0000-4000-b000-000000000026', 'Valdresflye (RV51)', 'vue_panoramique', 61.3, 8.9, 'Plateau à 1 389 m, rennes sauvages, derniers panoramas avant Oslo.', 25, '2026-07-25', '00000000-0000-4000-a000-000000000012', '2026-06-01T00:00:00Z');
+
+-- Spots drone (hors parcs nationaux — voir src/lib/seedData.ts, ajoutés en prod le 2026-07-05)
+insert into public.pois (id, nom, categorie, lat, lng, note, ordre, jour, etape_id, created_at) values
+('00000000-0000-4000-b000-000000000027', '🛸 Gaustatoppen', 'drone', 59.8542, 8.6482, E'Crête et panorama sur 1/6 de la Norvège. Hors parc national. Décoller à l''écart de la foule du sommet (150 m), tôt le matin.', 26, '2026-07-16', '00000000-0000-4000-a000-000000000003', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000028', '🛸 Gorge de Vøringsfossen', 'drone', 60.4108, 7.21, E'Le plan le plus spectaculaire du voyage : la chute de 182 m et le canyon de Måbødalen. Voler tôt (foule en journée) ; rafales dans la gorge.', 27, '2026-07-17', '00000000-0000-4000-a000-000000000004', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000029', '🛸 Lofthus & Sørfjorden', 'drone', 60.3333, 6.65, E'Vergers suspendus entre fjord et glacier. Voler au-dessus de l''eau, à 150 m des maisons — ne pas approcher le plateau du Folgefonna (parc national).', 28, '2026-07-18', '00000000-0000-4000-a000-000000000005', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000030', '🛸 Låtefossen', 'drone', 59.9489, 6.5858, E'La double cascade de 165 m sous le pont de la Rv13 — le classique absolu du drone en Norvège. Circulation + embruns : protéger la nacelle.', 29, '2026-07-18', '00000000-0000-4000-a000-000000000005', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000031', '🛸 Tvindefossen', 'drone', 60.6537, 6.4923, E'Cascade « tressée » de 110 m au bord de l''E16 après Voss, grand parking au pied : le spot drone facile par excellence, sur la route de Gudvangen.', 30, '2026-07-20', '00000000-0000-4000-a000-000000000007', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000032', '🛸 Aurlandsfjellet — Route des neiges', 'drone', 60.966, 7.241, E'Le ruban d''asphalte entre névés et lacs noirs à 1 100 m, désert au petit matin. Hors zones protégées — ne pas survoler le Nærøyfjord voisin (protégé).', 31, '2026-07-21', '00000000-0000-4000-a000-000000000008', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000033', '🛸 Stegastein', 'drone', 60.8667, 7.15, E'Contre-plongée mythique sur l''Aurlandsfjord 650 m plus bas. Très fréquenté : créneau tôt le matin pour tenir les 150 m des personnes.', 32, '2026-07-21', '00000000-0000-4000-a000-000000000008', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000034', '🛸 Col du Sognefjell', 'drone', 61.5667, 8.2667, E'Glaciers du Smørstabbreen, lacs turquoise et névés à 1 400 m. Le corridor de la Rv55 est hors du parc — ne pas franchir la limite du Jotunheimen (drone interdit).', 33, '2026-07-22', '00000000-0000-4000-a000-000000000009', '2026-06-01T00:00:00Z'),
+('00000000-0000-4000-b000-000000000035', '🛸 Valdresflye — côté est', 'drone', 61.362, 8.806, E'⚠️ Côté EST de la Rv51 uniquement : côté ouest (Jotunheimen — Gjende, Besseggen) le drone est interdit. Plateau minéral infini et rennes au petit matin.', 34, '2026-07-25', '00000000-0000-4000-a000-000000000012', '2026-06-01T00:00:00Z');
 
 -- ------------------------------------------------------------
 -- Notes

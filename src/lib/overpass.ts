@@ -13,8 +13,6 @@ export type SousTypeBivouac =
   | 'remarquable'
   /** Spot de nuit réputé, sélection éditoriale embarquée (voir curatedSpots.ts). */
   | 'selection'
-  /** Spot de prise de vue drone, sélection éditoriale embarquée (voir curatedSpots.ts). */
-  | 'drone'
   /** Station de vidange eaux grises / WC chimique (service van). */
   | 'sanitary_dump'
   /** Station-service. */
