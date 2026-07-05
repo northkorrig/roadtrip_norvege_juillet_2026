@@ -104,6 +104,29 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.private.coffee/api/interpreter',
 ] as const
 
+/** Délai max par miroir : un fetch navigateur sans timeout peut rester suspendu
+ *  plusieurs minutes si le serveur accepte la connexion sans jamais répondre —
+ *  c'est ce qui figeait la recherche avec un spinner infini. */
+const OVERPASS_TIMEOUT_MS = 20_000
+
+/**
+ * Combine un signal d'annulation externe avec un timeout : la requête est
+ * abandonnée si l'un OU l'autre se déclenche.
+ */
+export function signalAvecTimeout(ms: number, externe?: AbortSignal): AbortSignal {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(new DOMException('Délai dépassé', 'TimeoutError')), ms)
+  if (externe) {
+    const relayer = (): void => {
+      clearTimeout(timer)
+      ctrl.abort(externe.reason as Error | undefined)
+    }
+    if (externe.aborted) relayer()
+    else externe.addEventListener('abort', relayer, { once: true })
+  }
+  return ctrl.signal
+}
+
 async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ elements: OverpassElement[] }> {
   let derniereErreur: Error | null = null
   for (const endpoint of OVERPASS_ENDPOINTS) {
@@ -111,13 +134,20 @@ async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ e
       const res = await fetch(endpoint, {
         method: 'POST',
         body: `data=${encodeURIComponent(query)}`,
-        signal,
+        signal: signalAvecTimeout(OVERPASS_TIMEOUT_MS, signal),
       })
       if (!res.ok) throw new Error(`Overpass API : erreur ${res.status}`)
       return (await res.json()) as { elements: OverpassElement[] }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') throw err
-      derniereErreur = err instanceof Error ? err : new Error(String(err))
+      // Annulation demandée par l'appelant (nouvelle recherche) : on remonte.
+      // Un timeout de miroir, lui, bascule simplement sur le miroir suivant.
+      if (signal?.aborted) throw err instanceof Error ? err : new Error(String(err))
+      derniereErreur =
+        err instanceof Error && err.name === 'AbortError'
+          ? new Error('Overpass : délai dépassé')
+          : err instanceof Error
+            ? err
+            : new Error(String(err))
     }
   }
   throw derniereErreur ?? new Error('Tous les serveurs Overpass sont indisponibles')

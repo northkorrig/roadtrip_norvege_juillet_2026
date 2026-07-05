@@ -238,8 +238,12 @@ function ecrireSnaps(cache: SnapCache): void {
 /** Distance max entre la coordonnée embarquée et la fiche Google acceptée. */
 const SNAP_MAX_KM = 15
 
-function snapUnSpot(def: SelectionDef): Promise<SnapCache[string]> {
-  return new Promise((resolve) => {
+/** Délai max d'un recalage Places : si le callback Google ne revient jamais
+ *  (API en berne, quota), la recherche ne doit pas rester suspendue. */
+const SNAP_TIMEOUT_MS = 6_000
+
+function snapUnSpot(def: SelectionDef): Promise<SnapCache[string] | 'timeout'> {
+  const recalage = new Promise<SnapCache[string]>((resolve) => {
     const service = new google.maps.places.PlacesService(document.createElement('div'))
     service.findPlaceFromQuery(
       {
@@ -259,6 +263,10 @@ function snapUnSpot(def: SelectionDef): Promise<SnapCache[string]> {
       },
     )
   })
+  const delai = new Promise<'timeout'>((resolve) => {
+    setTimeout(() => resolve('timeout'), SNAP_TIMEOUT_MS)
+  })
+  return Promise.race([recalage, delai])
 }
 
 async function chercherListe(
@@ -281,7 +289,11 @@ async function chercherListe(
       const resultats = await Promise.all(
         aRecaler.map(async (d) => [d.id, await snapUnSpot(d).catch(() => null)] as const),
       )
-      for (const [id, snap] of resultats) snaps[id] = snap
+      // Les timeouts ne sont pas mis en cache : on retentera le recalage
+      // à la prochaine recherche (réseau peut-être revenu d'ici là).
+      for (const [id, snap] of resultats) {
+        if (snap !== 'timeout') snaps[id] = snap
+      }
       ecrireSnaps(snaps)
     }
   }
