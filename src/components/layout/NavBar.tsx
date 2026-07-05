@@ -1,4 +1,5 @@
 import {
+  CloudSun,
   Home,
   LogOut,
   MapPin,
@@ -24,6 +25,7 @@ const LIENS: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: '/itineraire', label: 'Itinéraire', Icon: Route },
   { to: '/pois', label: 'POIs', Icon: MapPin },
   { to: '/bivouacs', label: 'Bivouac', Icon: Tent },
+  { to: '/meteo', label: 'Météo', Icon: CloudSun },
   { to: '/budget', label: 'Budget', Icon: Wallet },
   { to: '/notes', label: 'Notes', Icon: NotebookPen },
   { to: '/pokedex', label: 'Pokédex', Icon: PawPrint },
@@ -121,7 +123,7 @@ export default function NavBar(): ReactNode {
         aria-label="Navigation mobile"
         className="no-print fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-night/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       >
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-8">
           {LIENS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
