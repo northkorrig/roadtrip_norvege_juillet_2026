@@ -2,6 +2,7 @@ import {
   Activity,
   BedDouble,
   Bus,
+  Camera,
   Caravan,
   Droplets,
   Fuel,
@@ -63,6 +64,7 @@ export const POI_CATEGORIES: Record<PoiCategorie, CategorieMeta> = {
   ferry: { label: 'Ferry', couleur: '#6FA8FF', Icon: Ship },
   bivouac: { label: 'Bivouac', couleur: '#7FD08C', Icon: Tent },
   activite: { label: 'Activité', couleur: '#FF7FA0', Icon: Ticket },
+  drone: { label: 'Spot drone', couleur: '#7DD3FC', Icon: Camera },
 }
 
 export const POI_CATEGORIE_LIST = Object.keys(POI_CATEGORIES) as PoiCategorie[]

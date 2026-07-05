@@ -1,5 +1,4 @@
 import {
-  Camera,
   Caravan,
   Droplets,
   ExternalLink,
@@ -33,7 +32,7 @@ import { PageTransition, Spinner } from '../components/ui'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { lienGoogleMaps, lienStreetView } from '../lib/googleMaps'
 import { chercherLieuxRemarquables } from '../lib/communitySpots'
-import { chercherSpotsEdito } from '../lib/curatedSpots'
+import { chercherSelection } from '../lib/curatedSpots'
 import { chercherBivouacs, haversineKm, type SousTypeBivouac, type SpotBivouac } from '../lib/overpass'
 import { chercherNotesGoogle, lienAvisGoogle, type NoteGoogle } from '../lib/placesRatings'
 import { useTripData } from '../state/TripDataContext'
@@ -41,7 +40,6 @@ import type { LatLng } from '../types/db'
 
 const SOUS_TYPES: Record<SousTypeBivouac, { label: string; couleur: string; Icon: LucideIcon }> = {
   selection: { label: 'Sélection connaisseurs', couleur: '#FFC94D', Icon: Star },
-  drone: { label: 'Spot drone', couleur: '#7DD3FC', Icon: Camera },
   sanitary_dump: { label: 'Vidange van', couleur: '#5EEAD4', Icon: Recycle },
   fuel: { label: 'Carburant', couleur: '#FDBA74', Icon: Fuel },
   remarquable: { label: 'Lieu remarquable', couleur: '#E8C45A', Icon: Sparkles },
@@ -142,7 +140,6 @@ export default function BivouacsPage(): ReactNode {
   const [filtres, setFiltres] = useState<Set<SousTypeBivouac>>(
     new Set<SousTypeBivouac>([
       'selection',
-      'drone',
       'sanitary_dump',
       'fuel',
       'remarquable',
@@ -199,7 +196,7 @@ export default function BivouacsPage(): ReactNode {
       const [rOsm, rRem, rSel] = await Promise.allSettled([
         chercherBivouacs(lat, lng, rayonKm, ctrl.signal),
         chercherLieuxRemarquables(lat, lng, rayonKm, ctrl.signal),
-        chercherSpotsEdito(lat, lng, rayonKm),
+        chercherSelection(lat, lng, rayonKm),
       ])
       if (ctrl.signal.aborted) return
       const bivouacs = rOsm.status === 'fulfilled' ? rOsm.value : []
@@ -280,7 +277,7 @@ export default function BivouacsPage(): ReactNode {
       lng: spot.lng,
       nom: libelleSpot(spot),
       categorie:
-        spot.sousType === 'viewpoint' || spot.sousType === 'drone'
+        spot.sousType === 'viewpoint'
           ? 'vue_panoramique'
           : spot.sousType === 'remarquable' || spot.sousType === 'sanitary_dump' || spot.sousType === 'fuel'
             ? 'activite'
@@ -485,16 +482,6 @@ export default function BivouacsPage(): ReactNode {
                 )}
               </p>
 
-              {filtres.has('drone') && spotsFiltres.some((s) => s.sousType === 'drone') && (
-                <div className="mb-2 rounded-xl border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-[11px] leading-relaxed text-sky-200/90">
-                  🛸 Drone : interdit dans les parcs nationaux (Jotunheimen — Besseggen/Gjende —,
-                  Hardangervidda, Folgefonna) et réserves. Enregistrement obligatoire sur{' '}
-                  <a href="https://flydrone.no" target="_blank" rel="noopener noreferrer" className="underline">
-                    flydrone.no
-                  </a>
-                  , 150 m des personnes et habitations — vérifie la carte des zones avant chaque vol.
-                </div>
-              )}
 
               <div className="space-y-2">
                 {spotsFiltres.map((spot) => {
@@ -670,7 +657,7 @@ export default function BivouacsPage(): ReactNode {
                 <p className="text-sm font-medium text-cream-dim">Sélectionne une étape et lance la recherche</p>
                 <p className="mt-0.5 text-xs text-cream-dim/60">Ou déplace la carte puis clique "Rechercher dans cette zone"</p>
                 <p className="mt-2 text-xs text-glacier/80">
-                  Nouveau : ⭐ sélection connaisseurs · 🛸 spots drone · ♻️ vidange van · ⛽ carburant
+                  Nouveau : ⭐ sélection connaisseurs · ♻️ vidange van · ⛽ carburant (les 🛸 spots drone sont dans les POIs)
                 </p>
               </div>
             </div>

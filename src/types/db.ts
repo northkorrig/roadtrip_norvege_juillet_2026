@@ -12,6 +12,7 @@ export type PoiCategorie =
   | 'ferry'
   | 'bivouac'
   | 'activite'
+  | 'drone'
 
 export type DepenseCategorie =
   | 'transport'
