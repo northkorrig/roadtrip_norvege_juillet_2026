@@ -21,6 +21,9 @@ Google Maps (Maps JS + Places + Directions) · Supabase (PostgreSQL + Realtime) 
   par proximité, Street View, ajout direct aux POIs. Une fonction serverless **`/api/spots`** (Vercel
   Edge) ajoute les **lieux remarquables** documentés par la communauté **Wikipédia** (fr + en, mis en
   cache CDN)
+- **Météo** (`/meteo`) : pour chaque étape à venir, conditions actuelles sur place +
+  prévisions du jour de l'étape (Open-Meteo, un seul appel multi-localisations, sans clé) ;
+  au-delà de l'horizon de prévision (~16 j), repli sur les normales de juillet
 - **Budget** : budget total éditable (localStorage `total_budget`), donut par catégorie,
   filtre par personne, conversion **EUR ⇄ NOK**, réservations à faire avec statuts
 - **Notes & logistique** : notes Markdown liées aux jours/POIs, checklist packing + avant-départ,

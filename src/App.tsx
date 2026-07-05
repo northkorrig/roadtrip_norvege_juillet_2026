@@ -11,6 +11,7 @@ const HomePage = lazy(() => import('./pages/HomePage'))
 const ItineraryPage = lazy(() => import('./pages/ItineraryPage'))
 const PoisPage = lazy(() => import('./pages/PoisPage'))
 const BivouacsPage = lazy(() => import('./pages/BivouacsPage'))
+const MeteoPage = lazy(() => import('./pages/MeteoPage'))
 const BudgetPage = lazy(() => import('./pages/BudgetPage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
 const PokedexPage = lazy(() => import('./pages/PokedexPage'))
@@ -49,6 +50,7 @@ function AppShell(): ReactNode {
           <Route path="/itineraire" element={<ProtectedRoute><ItineraryPage /></ProtectedRoute>} />
           <Route path="/pois" element={<ProtectedRoute><PoisPage /></ProtectedRoute>} />
           <Route path="/bivouacs" element={<ProtectedRoute><BivouacsPage /></ProtectedRoute>} />
+          <Route path="/meteo" element={<ProtectedRoute><MeteoPage /></ProtectedRoute>} />
           <Route path="/budget" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
           <Route path="/pokedex" element={<ProtectedRoute><PokedexPage /></ProtectedRoute>} />
