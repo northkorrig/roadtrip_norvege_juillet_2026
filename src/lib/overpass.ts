@@ -13,6 +13,12 @@ export type SousTypeBivouac =
   | 'remarquable'
   /** Spot de nuit réputé, sélection éditoriale embarquée (voir curatedSpots.ts). */
   | 'selection'
+  /** Spot de prise de vue drone, sélection éditoriale embarquée (voir curatedSpots.ts). */
+  | 'drone'
+  /** Station de vidange eaux grises / WC chimique (service van). */
+  | 'sanitary_dump'
+  /** Station-service. */
+  | 'fuel'
 
 export interface SpotBivouac {
   osmId: string
@@ -56,6 +62,10 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 function detecterSousType(tags: Record<string, string>): SousTypeBivouac {
+  // Services van
+  if (tags.amenity === 'sanitary_dump_station') return 'sanitary_dump'
+  if (tags.amenity === 'fuel') return 'fuel'
+
   // Spots remarquables / nature en priorité : ce sont eux qui manquaient à l'appel
   // quand on ne cherchait que les campings et les refuges.
   if (tags.tourism === 'viewpoint') return 'viewpoint'
@@ -137,6 +147,11 @@ export async function chercherBivouacs(
     `node["leisure"="firepit"]${a};` +
     `node["highway"="rest_area"]${a};` +
     `way["highway"="rest_area"]${a};` +
+    // Services van : vidange eaux grises / WC chimique + carburant
+    `node["amenity"="sanitary_dump_station"]${a};` +
+    `way["amenity"="sanitary_dump_station"]${a};` +
+    `node["amenity"="fuel"]${a};` +
+    `way["amenity"="fuel"]${a};` +
     `node["natural"="beach"]${a};` +
     `way["natural"="beach"]${a};` +
     `);` +

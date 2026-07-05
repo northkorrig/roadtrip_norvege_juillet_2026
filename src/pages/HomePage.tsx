@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { ArrowRight, CalendarDays, Plane, RotateCcw, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import AujourdHui, { dateLocaleIso, etapeDuJour } from '../components/home/AujourdHui'
 import MapCanvas from '../components/map/MapCanvas'
 import { fitToPoints, flyOver, useRoutePolyline, useTripMarkers } from '../components/map/mapLayers'
 import { CountUp } from '../components/ui'
@@ -21,6 +22,11 @@ const element = {
 
 export default function HomePage(): ReactNode {
   const { etapes, pois } = useTripData()
+  // Pendant le voyage, les compteurs laissent place au tableau de bord du jour.
+  // `?jour=YYYY-MM-DD` permet de prévisualiser n'importe quelle journée.
+  const [searchParams] = useSearchParams()
+  const jour = searchParams.get('jour') ?? dateLocaleIso()
+  const enVoyage = etapeDuJour(etapes, jour) !== null
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [path, setPath] = useState<LatLng[] | null>(null)
   const cancelVol = useRef<(() => void) | null>(null)
@@ -119,17 +125,23 @@ export default function HomePage(): ReactNode {
               {TRIP_META.sousTitre}
             </motion.p>
 
-            <motion.div variants={element} className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              {compteurs.map((c) => (
-                <div key={c.label} className="glass px-4 py-3">
-                  <p className="font-display text-2xl font-bold text-cream sm:text-3xl">
-                    <CountUp valeur={c.valeur} />
-                    <span className="text-glacier">{c.suffixe}</span>
-                  </p>
-                  <p className="text-[11px] uppercase tracking-wider text-cream-dim">{c.label}</p>
-                </div>
-              ))}
-            </motion.div>
+            {enVoyage ? (
+              <motion.div variants={element} className="mt-6">
+                <AujourdHui jour={jour} />
+              </motion.div>
+            ) : (
+              <motion.div variants={element} className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {compteurs.map((c) => (
+                  <div key={c.label} className="glass px-4 py-3">
+                    <p className="font-display text-2xl font-bold text-cream sm:text-3xl">
+                      <CountUp valeur={c.valeur} />
+                      <span className="text-glacier">{c.suffixe}</span>
+                    </p>
+                    <p className="text-[11px] uppercase tracking-wider text-cream-dim">{c.label}</p>
+                  </div>
+                ))}
+              </motion.div>
+            )}
 
             <motion.div variants={element} className="mt-7 flex flex-wrap items-center gap-3">
               <Link to="/itineraire" className="btn-primary px-6 py-3 text-base">
