@@ -1,4 +1,4 @@
-import { haversineKm, type SpotBivouac } from './overpass'
+import { haversineKm, signalAvecTimeout, type SpotBivouac } from './overpass'
 
 /** Forme renvoyée par la fonction serverless /api/spots. */
 interface ApiSpot {
@@ -25,7 +25,10 @@ export async function chercherLieuxRemarquables(
   signal?: AbortSignal,
 ): Promise<SpotBivouac[]> {
   try {
-    const res = await fetch(`/api/spots?lat=${lat}&lng=${lng}&radius=${rayonKm}`, { signal })
+    const res = await fetch(`/api/spots?lat=${lat}&lng=${lng}&radius=${rayonKm}`, {
+      // timeout : ne jamais suspendre la recherche entière sur cette source d'appoint
+      signal: signalAvecTimeout(12_000, signal),
+    })
     if (!res.ok) return []
     const json = (await res.json()) as { spots?: ApiSpot[] }
     return (json.spots ?? []).map<SpotBivouac>((s) => ({
@@ -47,7 +50,9 @@ export async function chercherLieuxRemarquables(
       approx: true,
     }))
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') throw err
+    // On ne remonte que l'annulation demandée par l'appelant ; un timeout de
+    // cette source d'appoint rend simplement une liste vide.
+    if (signal?.aborted && err instanceof Error && err.name === 'AbortError') throw err
     return []
   }
 }
