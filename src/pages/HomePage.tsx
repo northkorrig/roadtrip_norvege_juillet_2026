@@ -5,7 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import AujourdHui, { dateLocaleIso, etapeDuJour } from '../components/home/AujourdHui'
 import MapCanvas from '../components/map/MapCanvas'
 import { fitToPoints, flyOver, useRoutePolyline, useTripMarkers } from '../components/map/mapLayers'
-import { CountUp } from '../components/ui'
+import { CountUp, useToast } from '../components/ui'
 import { TRIP_META } from '../config/constants'
 import { fetchDrivingRoute } from '../lib/directions'
 import { useTripData } from '../state/TripDataContext'
@@ -27,6 +27,7 @@ export default function HomePage(): ReactNode {
   const [searchParams] = useSearchParams()
   const jour = searchParams.get('jour') ?? dateLocaleIso()
   const enVoyage = etapeDuJour(etapes, jour) !== null
+  const toast = useToast()
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [path, setPath] = useState<LatLng[] | null>(null)
   const cancelVol = useRef<(() => void) | null>(null)
@@ -84,7 +85,18 @@ export default function HomePage(): ReactNode {
     // noir à ces zooms — en hybrid, on survole réellement les fjords.
     map.setMapTypeId('hybrid')
     setEnVol(true)
+    // Diagnostic : si aucune tuile satellite n'arrive, prévenir plutôt que de
+    // laisser un écran noir muet (réseau lent, tuiles bloquées…).
+    const alerte = window.setTimeout(
+      () => toast('Les images satellite tardent à charger — connexion lente ?', 'erreur'),
+      7000,
+    )
+    const tuiles = google.maps.event.addListenerOnce(map, 'tilesloaded', () =>
+      window.clearTimeout(alerte),
+    )
     cancelVol.current = flyOver(map, stops, () => {
+      window.clearTimeout(alerte)
+      tuiles.remove()
       map.setMapTypeId('roadmap')
       setEnVol(false)
     })
@@ -206,6 +218,15 @@ export default function HomePage(): ReactNode {
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5 text-glacier" /> {TRIP_META.voyageurs.length} voyageurs · ~
                 {TRIP_META.distanceEstimeeKm.toLocaleString('fr-FR')} km estimés
+              </span>
+              <span className="text-cream-dim/40" title="Version de l'application (date du build)">
+                maj{' '}
+                {new Date(__BUILD_TIME__).toLocaleString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </span>
             </motion.p>
           </motion.div>

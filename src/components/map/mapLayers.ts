@@ -1,6 +1,7 @@
 import { MarkerClusterer, type Cluster } from '@googlemaps/markerclusterer'
 import { useEffect } from 'react'
 import { POI_CATEGORIES } from '../../config/constants'
+import { haversineKm } from '../../lib/overpass'
 import type { Etape, LatLng, Poi, PoiCategorie } from '../../types/db'
 
 export function etapeIcon(selectionne: boolean): google.maps.Symbol {
@@ -194,10 +195,13 @@ export function fitToPoints(map: google.maps.Map, points: LatLng[], padding = 64
  * Survol caméra de la route, étape par étape (animation d'entrée du hero).
  * Annulé dès que l'utilisateur touche la carte. Retourne une fonction cancel.
  */
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - (1 - t) * (1 - t) * 2
+}
+
 export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => void): () => void {
   if (stops.length === 0) return () => undefined
-  let i = 0
-  let timer = 0
+  let raf = 0
   let annule = false
 
   // `onDone` est garanti d'être appelé exactement une fois, y compris quand le
@@ -206,28 +210,54 @@ export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => vo
   const terminer = (): void => {
     if (annule) return
     annule = true
-    window.clearTimeout(timer)
+    cancelAnimationFrame(raf)
     listener.remove()
     onDone?.()
   }
 
   const listener = map.addListener('dragstart', terminer)
 
-  const step = (): void => {
+  // Vol CONTINU (interpolation à chaque frame) plutôt que des panTo d'étape en
+  // étape : des sauts de ~100 km vident tout le viewport et laissent un écran
+  // noir le temps du rechargement des tuiles, surtout sur réseau mobile. En
+  // glissant, les tuiles voisines se chargent au fil de l'eau.
+  const MS_PAR_KM = 24
+  const segments = stops.slice(1).map((fin, i) => {
+    const debut = stops[i]
+    const km = haversineKm(debut.lat, debut.lng, fin.lat, fin.lng)
+    return { debut, fin, duree: Math.min(3600, Math.max(900, km * MS_PAR_KM)) }
+  })
+  const dureeTotale = segments.reduce((s, seg) => s + seg.duree, 0)
+
+  map.setCenter(stops[0])
+  map.setZoom(7)
+
+  const t0 = performance.now() + 900 // laisse la première vue se charger
+  const tick = (now: number): void => {
     if (annule) return
-    if (i >= stops.length) {
+    let t = now - t0
+    if (t >= dureeTotale) {
       fitToPoints(map, stops, 72)
       terminer()
       return
     }
-    map.panTo(stops[i])
-    if (map.getZoom() !== 8) map.setZoom(8)
-    i += 1
-    timer = window.setTimeout(step, 1500)
+    if (t >= 0) {
+      let seg = segments[0]
+      for (const s of segments) {
+        if (t < s.duree) {
+          seg = s
+          break
+        }
+        t -= s.duree
+      }
+      const p = easeInOut(t / seg.duree)
+      map.setCenter({
+        lat: seg.debut.lat + (seg.fin.lat - seg.debut.lat) * p,
+        lng: seg.debut.lng + (seg.fin.lng - seg.debut.lng) * p,
+      })
+    }
+    raf = requestAnimationFrame(tick)
   }
-
-  map.panTo(stops[0])
-  map.setZoom(7)
-  timer = window.setTimeout(step, 900)
+  raf = requestAnimationFrame(tick)
   return terminer
 }
