@@ -10,3 +10,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** Horodatage ISO du build, injecté par `define` dans vite.config.ts. */
+declare const __BUILD_TIME__: string
