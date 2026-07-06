@@ -1,7 +1,6 @@
 import { MarkerClusterer, type Cluster } from '@googlemaps/markerclusterer'
 import { useEffect } from 'react'
 import { POI_CATEGORIES } from '../../config/constants'
-import { haversineKm } from '../../lib/overpass'
 import type { Etape, LatLng, Poi, PoiCategorie } from '../../types/db'
 
 export function etapeIcon(selectionne: boolean): google.maps.Symbol {
@@ -192,92 +191,76 @@ export function fitToPoints(map: google.maps.Map, points: LatLng[], padding = 64
 }
 
 /**
- * Survol caméra de la route, étape par étape (animation d'entrée du hero).
+ * Survol de la route, étape par étape, en s'arrêtant à chaque étape le temps
+ * que les tuiles s'affichent VRAIMENT.
+ *
+ * ⚠️ Leçon apprise : une caméra qui bouge en continu (interpolation frame par
+ * frame) empêche Google Maps de terminer le chargement des tuiles — chaque
+ * micro-déplacement annule la requête précédente, et l'écran reste sur la
+ * couleur de fond (bleu nuit) sans jamais afficher l'imagerie. On procède donc
+ * par paliers : on se pose sur une étape, on ATTEND `tilesloaded` (tuiles
+ * visibles), on laisse respirer un instant, puis on passe à la suivante.
+ *
  * Annulé dès que l'utilisateur touche la carte. Retourne une fonction cancel.
  */
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - (1 - t) * (1 - t) * 2
-}
-
 export function flyOver(map: google.maps.Map, stops: LatLng[], onDone?: () => void): () => void {
   if (stops.length === 0) return () => undefined
-  let raf = 0
-  let secours = 0
   let annule = false
+  let etape = 0
+  let timer = 0
+  let attenteTuiles: google.maps.MapsEventListener | null = null
 
-  // `onDone` est garanti d'être appelé exactement une fois, y compris quand le
-  // vol est annulé (drag utilisateur, bouton stop, démontage) : les appelants
-  // s'en servent pour restaurer l'état de la carte (type de fond, habillage).
+  const DWELL_MS = 1100 // pause sur chaque étape une fois les tuiles affichées
+  const TIMEOUT_TUILES_MS = 4500 // si les tuiles tardent, on avance quand même
+
+  // `onDone` est garanti d'être appelé exactement une fois (fin, annulation,
+  // drag, démontage) : les appelants restaurent l'état de la carte dedans.
   const terminer = (): void => {
     if (annule) return
     annule = true
-    cancelAnimationFrame(raf)
-    window.clearTimeout(secours)
-    premieresTuiles.remove()
-    listener.remove()
+    window.clearTimeout(timer)
+    attenteTuiles?.remove()
+    drag.remove()
     onDone?.()
   }
 
-  const listener = map.addListener('dragstart', terminer)
+  const drag = map.addListener('dragstart', terminer)
 
-  // Vol CONTINU (interpolation) plutôt que des panTo d'étape en étape : des
-  // sauts de ~100 km vident tout le viewport et laissent un écran noir le
-  // temps du rechargement des tuiles. Vitesse volontairement modérée et
-  // recentrage espacé (~12 fps) : à chaque déplacement, Google relance des
-  // chargements de tuiles — trop vite/trop souvent, elles n'arrivent jamais.
-  const MS_PAR_KM = 32
-  const PAS_MIN_MS = 80
-  const segments = stops.slice(1).map((fin, i) => {
-    const debut = stops[i]
-    const km = haversineKm(debut.lat, debut.lng, fin.lat, fin.lng)
-    return { debut, fin, duree: Math.min(4200, Math.max(1000, km * MS_PAR_KM)) }
-  })
-  const dureeTotale = segments.reduce((s, seg) => s + seg.duree, 0)
-
-  map.setCenter(stops[0])
-  map.setZoom(7)
-
-  let t0 = 0
-  let dernierPas = 0
-  const tick = (now: number): void => {
+  const suivante = (): void => {
     if (annule) return
-    let t = now - t0
-    if (t >= dureeTotale) {
+    etape += 1
+    poser()
+  }
+
+  const poser = (): void => {
+    if (annule) return
+    if (etape >= stops.length) {
+      // Vue d'ensemble finale sur toute la route, puis on rend la main.
       fitToPoints(map, stops, 72)
-      terminer()
+      timer = window.setTimeout(terminer, 1400)
       return
     }
-    if (t >= 0 && now - dernierPas >= PAS_MIN_MS) {
-      dernierPas = now
-      let seg = segments[0]
-      for (const s of segments) {
-        if (t < s.duree) {
-          seg = s
-          break
-        }
-        t -= s.duree
-      }
-      const p = easeInOut(t / seg.duree)
-      map.setCenter({
-        lat: seg.debut.lat + (seg.fin.lat - seg.debut.lat) * p,
-        lng: seg.debut.lng + (seg.fin.lng - seg.debut.lng) * p,
-      })
+
+    map.setZoom(etape === 0 ? 7 : 8)
+    map.panTo(stops[etape])
+
+    // On attend que les tuiles de CETTE vue soient chargées avant de temporiser
+    // puis d'enchaîner — avec un plan B si elles tardent (réseau lent).
+    let avance = false
+    const avancer = (): void => {
+      if (avance || annule) return
+      avance = true
+      attenteTuiles?.remove()
+      attenteTuiles = null
+      window.clearTimeout(timer)
+      timer = window.setTimeout(suivante, DWELL_MS)
     }
-    raf = requestAnimationFrame(tick)
+    attenteTuiles?.remove()
+    attenteTuiles = google.maps.event.addListenerOnce(map, 'tilesloaded', avancer)
+    timer = window.setTimeout(avancer, TIMEOUT_TUILES_MS)
   }
 
-  // Décollage seulement une fois la première vue affichée (tilesloaded), avec
-  // un plan B à 3 s — sinon on part sur un fond vide.
-  let lance = false
-  const decoller = (): void => {
-    if (lance || annule) return
-    lance = true
-    window.clearTimeout(secours)
-    t0 = performance.now() + 500
-    raf = requestAnimationFrame(tick)
-  }
-  const premieresTuiles = google.maps.event.addListenerOnce(map, 'tilesloaded', decoller)
-  secours = window.setTimeout(decoller, 3000)
-
+  // Petit délai initial pour laisser la première vue (satellite) s'initialiser.
+  timer = window.setTimeout(poser, 350)
   return terminer
 }
