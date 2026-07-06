@@ -80,12 +80,17 @@ export default function HomePage(): ReactNode {
   const relancerVol = (): void => {
     if (!map || stops.length < 2) return
     cancelVol.current?.()
-    // On survole la carte NORMALE (celle déjà affichée, dont les tuiles sont
-    // chargées) : pas de bascule satellite — elle ajoutait une dépendance à des
-    // tuiles parfois lentes/bloquées et une fausse alerte. Le voile s'efface
-    // (enVol) pour dégager la carte, le vol continu évite les tuiles vides.
+    // Vue SATELLITE pour le survol : le fond de carte « nuit » est presque noir
+    // à ces altitudes → le vol paraissait vide. En imagerie aérienne on survole
+    // vraiment les fjords. (Les tuiles satellite viennent des mêmes serveurs
+    // Google que la carte normale, qui s'affiche déjà correctement.) Plus de
+    // message d'alerte : l'ancien se déclenchait à tort pendant le déplacement.
+    map.setMapTypeId('hybrid')
     setEnVol(true)
-    cancelVol.current = flyOver(map, stops, () => setEnVol(false))
+    cancelVol.current = flyOver(map, stops, () => {
+      map.setMapTypeId('roadmap')
+      setEnVol(false)
+    })
   }
 
   const arreterVol = (): void => {
