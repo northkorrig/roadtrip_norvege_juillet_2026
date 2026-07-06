@@ -40,6 +40,11 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        // skipWaiting : le nouveau service worker prend la main IMMÉDIATEMENT au
+        // lieu d'attendre la fermeture de tous les onglets/instances. Sans lui,
+        // sur une PWA installée qui ne se ferme jamais vraiment, l'ancienne
+        // version restait servie indéfiniment — les correctifs n'arrivaient pas.
+        skipWaiting: true,
         runtimeCaching: [
           {
             // Feuilles de style Google Fonts

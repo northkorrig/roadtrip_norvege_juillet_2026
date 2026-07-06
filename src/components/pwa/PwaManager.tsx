@@ -29,7 +29,17 @@ export default function PwaManager(): ReactNode {
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
-  } = useRegisterSW()
+  } = useRegisterSW({
+    // Vérifie l'existence d'une nouvelle version toutes les 60 s tant que l'app
+    // est ouverte. Couplé à skipWaiting + autoUpdate, un nouveau déploiement
+    // s'active et recharge tout seul, sans devoir fermer entièrement l'app.
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return
+      setInterval(() => {
+        void registration.update().catch(() => undefined)
+      }, 60_000)
+    },
+  })
 
   // App prête hors-ligne : on prévient l'utilisateur une seule fois.
   useEffect(() => {
