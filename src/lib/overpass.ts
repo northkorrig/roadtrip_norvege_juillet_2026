@@ -168,26 +168,20 @@ export async function chercherBivouacs(
   const r = rayonKm * 1000
   const a = `(around:${r},${lat},${lng})`
   // On ratisse large : hébergements (campings, refuges, abris), emplacements
-  // informels (camp_pitch), aires de repos pour van, et surtout les "spots
-  // remarquables" repérés par la communauté OSM — points de vue, plages,
-  // aires de pique-nique et foyers de bivouac.
+  // informels (camp_pitch), aires de repos pour van, services van (vidange,
+  // carburant) et "spots remarquables" OSM (points de vue, plages, pique-nique).
+  //
+  // `nwr` = node+way+relation en une passe : deux fois moins d'instructions que
+  // les paires node/way séparées → requête plus légère et plus rapide (ce qui
+  // évitait qu'Overpass sature/expire sur les tags denses comme amenity=fuel).
   const q =
     `[out:json][timeout:${OVERPASS_TIMEOUT_SERVEUR_S}];` +
     `(` +
-    `node["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site|viewpoint)$"]${a};` +
-    `way["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site)$"]${a};` +
-    `node["amenity"="shelter"]${a};` +
-    `way["amenity"="shelter"]${a};` +
-    `node["leisure"="firepit"]${a};` +
-    `node["highway"="rest_area"]${a};` +
-    `way["highway"="rest_area"]${a};` +
-    // Services van : vidange eaux grises / WC chimique + carburant
-    `node["amenity"="sanitary_dump_station"]${a};` +
-    `way["amenity"="sanitary_dump_station"]${a};` +
-    `node["amenity"="fuel"]${a};` +
-    `way["amenity"="fuel"]${a};` +
-    `node["natural"="beach"]${a};` +
-    `way["natural"="beach"]${a};` +
+    `nwr["tourism"~"^(camp_site|caravan_site|wilderness_hut|alpine_hut|camp_pitch|picnic_site|viewpoint)$"]${a};` +
+    `nwr["amenity"~"^(shelter|sanitary_dump_station|fuel)$"]${a};` +
+    `nwr["leisure"="firepit"]${a};` +
+    `nwr["highway"="rest_area"]${a};` +
+    `nwr["natural"="beach"]${a};` +
     `);` +
     `out center tags;`
 

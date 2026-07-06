@@ -5,7 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import AujourdHui, { dateLocaleIso, etapeDuJour } from '../components/home/AujourdHui'
 import MapCanvas from '../components/map/MapCanvas'
 import { fitToPoints, flyOver, useRoutePolyline, useTripMarkers } from '../components/map/mapLayers'
-import { CountUp, useToast } from '../components/ui'
+import { CountUp } from '../components/ui'
 import { TRIP_META } from '../config/constants'
 import { fetchDrivingRoute } from '../lib/directions'
 import { useTripData } from '../state/TripDataContext'
@@ -27,7 +27,6 @@ export default function HomePage(): ReactNode {
   const [searchParams] = useSearchParams()
   const jour = searchParams.get('jour') ?? dateLocaleIso()
   const enVoyage = etapeDuJour(etapes, jour) !== null
-  const toast = useToast()
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [path, setPath] = useState<LatLng[] | null>(null)
   const cancelVol = useRef<(() => void) | null>(null)
@@ -81,25 +80,12 @@ export default function HomePage(): ReactNode {
   const relancerVol = (): void => {
     if (!map || stops.length < 2) return
     cancelVol.current?.()
-    // Vue satellite pendant le vol : le style nuit du fond de carte est quasi
-    // noir à ces zooms — en hybrid, on survole réellement les fjords.
-    map.setMapTypeId('hybrid')
+    // On survole la carte NORMALE (celle déjà affichée, dont les tuiles sont
+    // chargées) : pas de bascule satellite — elle ajoutait une dépendance à des
+    // tuiles parfois lentes/bloquées et une fausse alerte. Le voile s'efface
+    // (enVol) pour dégager la carte, le vol continu évite les tuiles vides.
     setEnVol(true)
-    // Diagnostic : si aucune tuile satellite n'arrive, prévenir plutôt que de
-    // laisser un écran noir muet (réseau lent, tuiles bloquées…).
-    const alerte = window.setTimeout(
-      () => toast('Les images satellite tardent à charger — connexion lente ?', 'erreur'),
-      7000,
-    )
-    const tuiles = google.maps.event.addListenerOnce(map, 'tilesloaded', () =>
-      window.clearTimeout(alerte),
-    )
-    cancelVol.current = flyOver(map, stops, () => {
-      window.clearTimeout(alerte)
-      tuiles.remove()
-      map.setMapTypeId('roadmap')
-      setEnVol(false)
-    })
+    cancelVol.current = flyOver(map, stops, () => setEnVol(false))
   }
 
   const arreterVol = (): void => {
