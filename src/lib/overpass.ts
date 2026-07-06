@@ -133,7 +133,11 @@ export function signalAvecTimeout(ms: number, externe?: AbortSignal): AbortSigna
   return ctrl.signal
 }
 
-async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ elements: OverpassElement[] }> {
+/** Appel direct des miroirs publics depuis le navigateur — secours quand le
+ *  proxy /api/overpass est absent (dev local) ou injoignable. Peut échouer
+ *  côté client (CORS/miroir filtré selon le réseau), d'où la préférence pour
+ *  le proxy en production. */
+async function requeteDirecte(query: string, signal?: AbortSignal): Promise<{ elements: OverpassElement[] }> {
   let derniereErreur: Error | null = null
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
@@ -157,6 +161,33 @@ async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ e
     }
   }
   throw derniereErreur ?? new Error('Tous les serveurs Overpass sont indisponibles')
+}
+
+async function requeteOverpass(query: string, signal?: AbortSignal): Promise<{ elements: OverpassElement[] }> {
+  // 1) Via le proxy serverless (contourne les blocages CORS/miroirs du
+  //    navigateur, cf. api/overpass.ts). C'est le chemin fiable en production.
+  try {
+    const res = await fetch('/api/overpass', {
+      method: 'POST',
+      body: query,
+      signal: signalAvecTimeout(OVERPASS_TIMEOUT_MS, signal),
+    })
+    if (res.ok) return (await res.json()) as { elements: OverpassElement[] }
+    // 404/405 = fonction absente (dev local sans `vercel dev`, SPA fallback) :
+    // on bascule sur les miroirs directs. Tout autre code = proxy présent mais
+    // Overpass en échec côté serveur → inutile de retenter depuis le navigateur.
+    if (res.status !== 404 && res.status !== 405) {
+      throw new Error(`Overpass indisponible (${res.status})`)
+    }
+  } catch (err) {
+    if (signal?.aborted) throw err instanceof Error ? err : new Error(String(err))
+    // Panne Overpass remontée volontairement ci-dessus : ne pas retenter.
+    if (err instanceof Error && err.message.startsWith('Overpass indisponible (')) throw err
+    // Sinon (proxy injoignable, réponse non-JSON du fallback SPA…) : miroirs directs.
+  }
+
+  // 2) Secours : appel direct aux miroirs publics.
+  return requeteDirecte(query, signal)
 }
 
 export async function chercherBivouacs(
